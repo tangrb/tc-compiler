@@ -51,7 +51,19 @@
   断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin。
   默认只读，`--gdb-allow-write` 开放受限写入。
 - **T3 测试**：新增并注册 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`
-  （242 checks）、`vm.gdb.semantics` 与 `vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。
+  （242 checks）、`vm.gdb.semantics` 与 `vm.gdb.e2e`；均不属于 fast。
+- **T4 诊断 JSON**：新增 `--diag-format=json`，输出键序稳定的 JSONL 诊断与 note，
+  保持文本模式的诊断顺序、码与退出码。
+- **T4 测试**：新增并注册 `t4.diag` 与 `toolchain.diag_json`，覆盖 schema golden、
+  80 码映射、invalid-byte/RT trap 附加字段与错误路径。
+- **T5 测试基建**：新增 CMake presets、固定 CTest 标签、统一 `tests/run.py` 与
+  `tc-reduce`；reducer 使用私有结构化诊断 fd、内置工具身份认证、确定性缩减动作、
+  输入/输出身份保护、stdin 快照、进程组清理、超时与原子结果交付。
+- **T5 测试**：新增并注册 `toolchain.presets` 与 `toolchain.reduce`，覆盖运行器、
+  标签不变量、认证/别名、指纹保持、CRLF、timeout、stdin 与清理失败路径。
+- **T6 可复现发布**：固定调试产物根相对路径与 `DW_AT_comp_dir=.`；新增
+  `release.t6_repro`，验证 AArch64、ARM32 与 RISC-V32 的调试 `asm/obj/elf/flat`
+  连续构建及同构同深度跨根构建逐字节一致；发布审计新增对应工具链检查。
 - **统一实现级错误**：所有入口共用 `TcImplError` 退出码映射；宿主 IO、能力不可用
   与实际 OOM 退出 70，用法错误退出 2，内部契约破坏与实现上限退出 71。
 - **契约验证**：三入口精确版本输出、`tc` 参数/终止符/uint64 超时语法、
@@ -68,12 +80,12 @@
 
 ### 状态
 
-- 0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项）。
+- 0.0.47 CTest 注册总数 99。
   G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成；
   固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与 G11 未完成。
-- P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成；P4b 本地实现与四种 profile 的
-  真实 gdb 验证已完成，G11 证据基础设施已接入；固定 Linux CI 真实签名 artifact
-  待完成，P4b 正式验收与 G11 未完成，P5 与 T4–T6 尚未开始。
+- P0–P4a、P5 本地验收与 T0–T6 已完成；P4b 本地实现与四种 profile 的真实 gdb
+  验证已完成，G11 证据基础设施已接入；固定 Linux CI 真实签名 artifact 待完成，
+  P4b 正式验收与 G11 未完成。
   `tc --init-project`、编译器路径消费与 `tc --test` 已可用；VM/AOT `--dump-linemap`
   与公开 `tc-aot --debug` 已可用，真实 qemu gdbstub/gdb 冒烟已通过；VM GDBstub
   已提供原子 stdout journal 与可恢复 stdin；VM 调试 ELF 已通过四种档案的独立

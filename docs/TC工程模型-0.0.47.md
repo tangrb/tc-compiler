@@ -587,16 +587,16 @@ PASS 证据。
 
 | 覆盖范围 | 测试入口 | 标签 |
 | ---- | ---- | ---- |
-| `tc` CLI、init、退出码与报告安全（§5、§7） | `tests/project/tc_cli_test.py` | `toolchain`, `fast` |
-| manifest 语法、默认值、根发现与错误顺序（§3–§4） | `tests/project/manifest_test.py` | `toolchain`, `fast` |
-| 测试发现、侧车、worker、超时、快照与报告（§6） | `tests/project/test_runner_test.py` | `toolchain`, `fast` |
-| init 的 create/write/close/回滚故障注入（§5） | `tests/project/init_fault_test.py` | `toolchain`, `fast` |
-| 根相对路径、模块身份、外部/回退与源文件边界（§4） | `tests/project/path_test.py` | `toolchain`, `fast` |
-| AOT 源字符串与板端 trap 路径（§4） | `tests/project/path_aot_test.py` | `toolchain`, `aot` |
-| monitor 的 module 与选择器（§4） | `tests/conformance/tools/`；客户端 `tests/tools/vm_gdb_client.py` | `toolchain`, `fast` |
-| 跨根 asm/ELF/flat 确定性（§4.4、§9.2） | `tests/determinism/project_determinism.py` | `toolchain`, `slow` |
-| 三入口契约与发布审计（§1、§9.2） | `tests/tools/s10_release_audit.py`、`tests/tools/cli_contract_test.py` | `toolchain` |
-| harness 的 root 解析 | `tests/adapters/`、`tests/harness/` | `conformance` |
+| `tc` CLI、init、退出码与报告安全（§5、§7） | `cli.contract`、`project.init` | `unit`, `toolchain`, `fast` |
+| manifest 语法、默认值、根发现与错误顺序（§3–§4） | `project.manifest` | `unit`, `toolchain`, `fast` |
+| 测试发现、侧车、worker、超时、快照与报告（§6） | `project.test_runner` | `unit`, `toolchain`, `fast` |
+| init 的 create/write/close/回滚故障注入（§5） | `project.init_fault` | `unit`, `toolchain`, `fast` |
+| 根相对路径、模块身份、外部/回退与源文件边界（§4） | `project.paths_unit`、`project.paths` | `unit`, `toolchain`, `fast` |
+| AOT 源字符串与板端 trap 路径（§4） | `project.paths_aot` | `unit`, `toolchain`, `aot` |
+| monitor 的 module 与选择器（§4） | `vm.gdb.protocol`、`vm.gdb.semantics` | `unit`, `toolchain`, `slow` |
+| 跨根 asm/ELF/flat 确定性（§4.4、§9.2） | `release.t6_repro` | `toolchain`, `aot` |
+| 三入口契约与发布审计（§1、§9.2） | `cli.contract`、`release.audit_selftest`、`release.s10_audit` | `toolchain` |
+| harness 的 root 解析 | `adapter.selftest`、`harness.selftest`、`harness.conformance` | `conformance` |
 
 上表是覆盖入口，不重复规范条款；每个测试必须覆盖所引用章节的正例、反例与错误优先级。
 新增测试沿用固定标签集合，`fast` 与 `slow` 互斥；外部依赖缺失按工具链文档 §7.1 的

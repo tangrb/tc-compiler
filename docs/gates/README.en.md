@@ -19,8 +19,8 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G10 | S10 multi-target expansion and long-term regression | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 | G11 | 0.0.47 toolchain and project model | **Incomplete** | Current status on this page |
 
-**Current status**: G10 passed and the 0.0.46 stage exit is complete. P0/T0, P1,
-P2, P3, P4a, T1, T2 and T3 of `tc-0.0.47` are complete: split versions, three private entry
+**Current status**: G10 passed and the 0.0.46 stage exit is complete. P0–P4a,
+local P5 acceptance and T0–T6 of `tc-0.0.47` are complete: split versions, three private entry
 points, the shared implementation-error exit mapping, the `tc` CLI contract,
 release audit, full `tc --init-project` templates with atomic writes/rollback/
 identity checks, `tc.project` v1 parsing with nearest-ancestor root discovery,
@@ -51,7 +51,7 @@ defaults to port 0 and binds loopback only, with mandatory
 an atomic stdout journal and resumable stdin. The default is read-only;
 `--gdb-allow-write` enables only restricted writes. Evidence entry points are
 `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (242 checks),
-`vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast, while e2e is not.
+`vm.gdb.semantics` and `vm.gdb.e2e`; none of these debugger tests are fast.
 P4b completes the private VM debug ELF writer and local real-gdb validation across
 all four profiles: `tc-vm --gdb-elf-out=<path>` reuses the shared line map and
 synthetic addresses, and `toolchain.debug_elf` verifies debug ELF, source breakpoints,
@@ -60,10 +60,12 @@ synthetic addresses, and `toolchain.debug_elf` verifies debug ELF, source breakp
 AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted. ARM clients need `set arm force-mode thumb`;
 GDB 18.1 ARM `stepi` cannot be used directly because sp is not modelled, so tests
 verify the same RSP step with maintenance packet `s` and a register-cache flush.
-G11 evidence collection/validation and a manual signing job are wired. A real signed
-artifact from fixed Linux CI remains pending, so P4b formal acceptance and G11 are
-incomplete; P5 and T4–T6 have not started.
-There are 92 registered 0.0.47 CTests and 51 closing checks.
+T4 completes diagnostic JSONL; T5 completes presets, fixed labels, the unified
+test runner and `tc-reduce`; T6 completes repeatable and root-independent
+three-architecture debug artifacts. G11 evidence collection/validation and a
+manual signing job are wired. A real signed artifact from fixed Linux CI remains
+pending, so P4b formal acceptance and G11 are incomplete.
+There are 99 registered 0.0.47 CTests and 51 closing checks.
 The front end, CT/IR, runtime semantic
 core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32 backend, the
 W=32 RISC-V `riscv32-baremetal` backend, the freestanding target runtime core
@@ -81,7 +83,7 @@ Reproduce:
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

@@ -94,5 +94,10 @@ int tc_cli_flush(FILE *stream);
 void tc_cli_ignore_sigpipe(void);
 int tc_cli_print_usage(FILE *stream, const char *tool_name);
 int tc_impl_error_exit(TcImplError error);
+void tc_cli_reduce_protocol_init(void);
+int tc_cli_reduce_protocol_active(void);
+int tc_cli_reduce_protocol_failed(void);
+FILE *tc_cli_diag_stream(void);
+int tc_cli_print_reduce_auth(const char *argv0);
 
 #endif /* TC_DRIVER_CLI_H */

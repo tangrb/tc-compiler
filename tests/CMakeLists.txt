@@ -3,6 +3,11 @@
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/tools/tc_reduce.py
+               ${PROJECT_BINARY_DIR}/src/driver/tc-reduce COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/run.py
+               ${PROJECT_BINARY_DIR}/tests/run.py COPYONLY)
+
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/.tmp)
 add_compile_definitions(TC_TEST_TMP_ROOT="${PROJECT_SOURCE_DIR}/.tmp")
 
@@ -178,8 +183,27 @@ add_test(
     NAME t1.observe
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/t1_observe_test.py
             $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
-set_tests_properties(t1.observe PROPERTIES LABELS "unit;toolchain;fast")
-set_tests_properties(contract.unit cli.contract t1.observe oom.unit release.audit_selftest
+add_test(
+    NAME t4.diag
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/t4_diag_test.py
+            $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
+add_test(
+    NAME toolchain.diag_json
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/t4_diag_test.py
+            $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
+add_test(
+    NAME toolchain.presets
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/presets_test.py
+            ${PROJECT_BINARY_DIR})
+add_test(
+    NAME toolchain.reduce
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/reduce_test.py
+            ${PROJECT_BINARY_DIR}/src/driver/tc-reduce
+            $<TARGET_FILE:tc-vm> $<TARGET_FILE:tc-aot>)
+set_tests_properties(t1.observe t4.diag toolchain.diag_json
+                    PROPERTIES LABELS "unit;toolchain;fast")
+set_tests_properties(contract.unit cli.contract t1.observe t4.diag toolchain.diag_json
+                    oom.unit release.audit_selftest
                     toolchain.g11_evidence
                     project.manifest project.init project.init_fault
                     project.test_runner
@@ -276,8 +300,19 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/t2_gdb_test.py
                      $<TARGET_FILE:tc-aot> ${TC_QEMU_SYSTEM_AARCH64}
-                     "${TC_GDB}")
-    set_tests_properties(t2.gdb PROPERTIES LABELS "toolchain;aot")
+                     "${TC_GDB}" --profile=aarch64-baremetal)
+    add_test(NAME t2.gdb.arm32
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/t2_gdb_test.py
+                     $<TARGET_FILE:tc-aot> ${TC_QEMU_SYSTEM_ARM}
+                     "${TC_GDB}" --profile=arm32-baremetal)
+    add_test(NAME t2.gdb.riscv32
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/t2_gdb_test.py
+                     $<TARGET_FILE:tc-aot> ${TC_QEMU_SYSTEM_RISCV32}
+                     "${TC_GDB}" --profile=riscv32-baremetal)
+    set_tests_properties(t2.gdb t2.gdb.arm32 t2.gdb.riscv32
+                         PROPERTIES LABELS "toolchain;aot")
     add_test(NAME vm.gdb.e2e
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/vm_gdb_e2e.py
@@ -434,6 +469,10 @@ if(TC_ENABLE_AOT_TESTS)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/conformance/platform/s10_long_branch.py
                      --check)
+    add_test(NAME release.t6_repro
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/determinism/t6_reproducibility.py
+                     --check)
     add_test(NAME release.s10_audit
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/s10_release_audit.py
@@ -455,7 +494,7 @@ if(TC_ENABLE_AOT_TESTS)
         conformance.s10_longterm conformance.s10_abi_fuzz
         conformance.s10_limits conformance.s10_static_fuzz
         conformance.s10_frontend_scale conformance.s10_checked
-        conformance.s10_long_branch release.s10_audit
+        conformance.s10_long_branch release.t6_repro release.s10_audit
         PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         ENVIRONMENT "TC_PROJECT=$<TARGET_FILE:tc>;TC_VM=$<TARGET_FILE:tc-vm>;TC_AOT=$<TARGET_FILE:tc-aot>;TC_AOT_QEMU_SYSTEM=${TC_QEMU_SYSTEM_AARCH64};TC_AOT_QEMU_SYSTEM_ARM=${TC_QEMU_SYSTEM_ARM};TC_AOT_QEMU_SYSTEM_RISCV32=${TC_QEMU_SYSTEM_RISCV32};TC_AOT_LINKER=${TC_LLD}")
@@ -550,6 +589,64 @@ set_tests_properties(harness.conformance PROPERTIES WORKING_DIRECTORY ${CMAKE_SO
 
 get_property(tc_test_names DIRECTORY PROPERTY TESTS)
 foreach(tc_test_name IN LISTS tc_test_names)
+    set(tc_labels "")
+    if(tc_test_name MATCHES "^(contract|frontend|sem|ct|ir|linemap|vm|aot|oom)\\.unit$")
+        list(APPEND tc_labels unit)
+    elseif(tc_test_name MATCHES "^gdb_(journal|rsp)\\.unit$")
+        list(APPEND tc_labels unit toolchain)
+    elseif(tc_test_name MATCHES "^vm\\.gdb\\.")
+        list(APPEND tc_labels unit toolchain)
+    elseif(tc_test_name MATCHES "^project\\.")
+        list(APPEND tc_labels unit toolchain)
+    elseif(tc_test_name STREQUAL "cli.contract")
+        list(APPEND tc_labels unit toolchain)
+    elseif(tc_test_name MATCHES "^toolchain\\.")
+        list(APPEND tc_labels toolchain)
+    elseif(tc_test_name MATCHES "^(t1|t2|t4|p4a)\\.")
+        list(APPEND tc_labels toolchain)
+    elseif(tc_test_name MATCHES "^conformance\\.")
+        list(APPEND tc_labels conformance)
+    elseif(tc_test_name MATCHES "^determinism\\.")
+        list(APPEND tc_labels conformance)
+    elseif(tc_test_name MATCHES "^(trace|golden|harness|adapter)\\.")
+        list(APPEND tc_labels conformance)
+    elseif(tc_test_name MATCHES "^release\\.")
+        list(APPEND tc_labels toolchain)
+    elseif(tc_test_name STREQUAL "docs.cleanup")
+        list(APPEND tc_labels toolchain)
+    else()
+        list(APPEND tc_labels unit)
+    endif()
+
+    set(tc_is_aot FALSE)
+    if(tc_test_name MATCHES "^toolchain\\.(debug_elf|aot_debug|debug_smoke|codegen_invariance)$" OR
+       tc_test_name MATCHES "^p4a\\.debug$" OR
+       tc_test_name MATCHES "^t2\\.(debug|gdb)" OR
+       tc_test_name MATCHES "^vm\\.gdb\\.e2e$" OR
+       tc_test_name STREQUAL "project.paths_aot" OR
+       tc_test_name MATCHES "^conformance\\.s(7|8|9|10)_" OR
+       tc_test_name STREQUAL "conformance.abi_reverse" OR
+       tc_test_name MATCHES "^determinism\\.s(7|8|9|10)$" OR
+       tc_test_name MATCHES "^release\\.(t6_repro|s10_audit)$")
+        set(tc_is_aot TRUE)
+        list(APPEND tc_labels aot)
+    endif()
+
+    set(tc_is_slow FALSE)
+    if(tc_test_name MATCHES "long_branch|longterm|frontend_scale|fuzz|release\\.s10_audit" OR
+       tc_test_name MATCHES "^gdb_(journal|rsp)\\.unit$" OR
+       tc_test_name MATCHES "^vm\\.gdb\\.(protocol|semantics)$")
+        set(tc_is_slow TRUE)
+        list(APPEND tc_labels slow)
+    endif()
+
+    if(NOT tc_is_aot AND NOT tc_is_slow)
+        list(APPEND tc_labels fast)
+    endif()
+    list(REMOVE_DUPLICATES tc_labels)
+    string(REPLACE ";" ";" tc_labels "${tc_labels}")
+    set_tests_properties(${tc_test_name} PROPERTIES LABELS "${tc_labels}")
+
     get_test_property(${tc_test_name} ENVIRONMENT tc_test_environment)
     if(tc_test_environment STREQUAL "tc_test_environment-NOTFOUND")
         set(tc_test_environment "")

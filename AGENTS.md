@@ -3,9 +3,9 @@
 0.0.46 为 clean-sheet 实现基线。实现与验证以标准/设计/测试计划为准；历史实现、工具与测试
 已移除，只在 git tag 中保留。`tc-0.0.47` 分支目标是在语言语义不变的前提下交付开发调试工具链
 （范围见 `docs/TC开发调试工具链-0.0.47.md`）与工程模型（`docs/TC工程模型-0.0.47.md`）；
-两份设计已达到冻结条件；P0/T0、P1、P2、P3、P4a、T1、T2 与 T3 已完成，
-P4b 本地实现与四种 profile 的真实 gdb 验证已完成；固定 Linux CI 真实签名
-artifact 待完成，P4b 正式验收与 G11 未完成；P5 与 T4–T6 尚未开始。
+两份设计已达到冻结条件；P0–P4a、P5 本地验收、T0–T6 已完成，P4b 本地实现与四种
+profile 的真实 gdb 验证已完成；固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与
+G11 未完成。
 当前私有入口为 `tc`/`tc-vm`/`tc-aot`；`tc --init-project` 已实现完整模板、原子写入、
 回滚与身份检查；`tc --test` 已实现一层发现/筛选、fd 锚定 beneath 解析、严格侧车、
 私有只读快照、fork worker、超时、流捕获、结构化结果、报告与退出映射。
@@ -64,14 +64,15 @@ RTOS/中断/并发移交 0.0.48。
   `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`（AArch64 64 位，
   ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
   `stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet `s` 与 flush
-  register-cache 验证同一 RSP 单步。§6.10 固定 Linux CI 真实签名 artifact 尚未完成，
-  P4b 正式验收与 G11 均未完成。P5 与 T4–T6 尚未开始。
+  register-cache 验证同一 RSP 单步。T4 完成诊断 JSONL；T5 完成 CMake presets、固定
+  标签、统一 `tests/run.py` 与 `tc-reduce`；T6 完成三架构调试产物重复/跨根确定性。
+  §6.10 固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 均未完成。
 - 版本：工具链为 0.0.47，语言与契约仍为 0.0.46/1；工具链版本不参与语言契约检查。
 - 未实现：可选优化管线（SSA/regalloc/内联）；0.0.46 基线保持零 pass。
 - 门禁：G0–G10 PASS，G10 完成 0.0.46 阶段出口；0.0.47 的 G11 未完成。
   G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成，
   固定 Linux CI 真实签名 artifact 仍待完成，P4b 正式验收与 G11 未完成。已注册
-  CTest 总数 92，收尾检查 51 项，见 `docs/gates/README.md`。
+  CTest 总数 99，收尾检查 51 项，见 `docs/gates/README.md`。
 - 诊断码：80 个（65 `TC_CE_*` + 15 `TC_RE_*`），不得增删。
 - 32/64 位均为目标；`usize`/`isize` 为平台字长类型。
 - 不提供 C 宿主公共库、嵌入 API/ABI；不要重新引入。三个入口只链接私有静态 `tc_core`。
@@ -194,6 +195,7 @@ RTOS/中断/并发移交 0.0.48。
 | VM 调试 ELF / GDBstub | `src/vm/debug_elf.h`、`debug_elf.c`、`gdb.h`、`gdb.c`、`gdb_rsp.h`、`gdb_rsp.c`、`gdb_journal.h`、`gdb_journal.c`；P4b 入口 `toolchain.debug_elf`，T3 入口 `gdb_journal.unit`/`gdb_rsp.unit`/`vm.gdb.protocol`/`vm.gdb.semantics`/`vm.gdb.e2e` |
 | G11 证据 / 发布审计 | `tests/tools/g11_evidence.py`、`s10_release_audit.py`；入口 `toolchain.g11_evidence` |
 | VM/AOT 观测 | `src/driver/observe.h`、`observe.c`、`src/vm/observe.h`、`observe.c`、`src/backend/common/emit_stats.h`、`emit_stats.c`；T1 入口 `t1.observe` |
+| 诊断 JSON / 测试基建 / 可复现发布 | T4 入口 `t4.diag`/`toolchain.diag_json`；T5 入口 `toolchain.presets`/`toolchain.reduce`；T6 入口 `release.t6_repro` |
 | 实现模块边界 | `src/README.md` |
 | 冻结契约与实现约定 | `src/CONTRACTS.md` |
 | 前端接口 | `src/frontend/parse.h`、`lex.h`、`input.h`、`module.h`、`sem.h`、`ct.h` |

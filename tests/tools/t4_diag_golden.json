@@ -1,0 +1,28 @@
+{
+  "error_keys": ["code", "severity", "stage", "print_name", "file", "line", "col"],
+  "related_keys": ["severity", "note", "file", "line", "col"],
+  "invalid_keys": ["severity", "note", "file", "line", "col", "offset"],
+  "trap_keys": ["code", "severity", "stage", "print_name", "file", "line", "col", "func", "bb", "insn", "op", "depth", "kind", "module"],
+  "cases": {
+    "lex_invalid": [
+      {"code": "TC_CE_SYNTAX", "severity": "error", "stage": "LEX", "print_name": "SyntaxError", "file": "main.tc", "line": 2, "col": 20},
+      {"severity": "note", "note": "invalid byte offset", "file": "main.tc", "line": 2, "col": 20, "offset": 28}
+    ],
+    "syntax": [
+      {"code": "TC_CE_VAR_MISSING_INIT", "severity": "error", "stage": "SYN", "print_name": "VarMissingInitializer", "file": "main.tc", "line": 3, "col": 9}
+    ],
+    "import": [
+      {"code": "TC_CE_IMPORT_NOT_FOUND", "severity": "error", "stage": "IMPORT", "print_name": "ImportNotFound", "file": "main.tc", "line": 2, "col": 8}
+    ],
+    "sem_related": [
+      {"code": "TC_CE_MISSING_RETURN", "severity": "error", "stage": "SEM", "print_name": "MissingReturn", "file": "lib.tc", "line": 2, "col": 17},
+      {"severity": "note", "note": "related position", "file": "lib.tc", "line": 3, "col": 1}
+    ],
+    "ct": [
+      {"code": "TC_CE_CONST_DIV_ZERO", "severity": "error", "stage": "CT", "print_name": "ConstDivZero", "file": "main.tc", "line": 2, "col": 7}
+    ],
+    "rt": [
+      {"code": "TC_RE_DIV_ZERO", "severity": "error", "stage": "RT", "print_name": "DivisionByZero", "file": "main.tc", "line": 3, "col": 16, "func": "<top>", "bb": 0, "insn": 1, "op": "div", "depth": 0, "kind": "unit", "module": "main.tc"}
+    ]
+  }
+}

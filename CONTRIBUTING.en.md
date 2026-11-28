@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0/T0 governance and the three-entry contract, P1 project initialization and manifest/root-discovery APIs, P2 canonical/display paths plus compiler path consumption, the P3 project test runner, P4a AOT line maps/debug information, T1 VM/AOT observation, T2 source mapping and T3 VM GDB debugging are complete. P4b implementation and local real-gdb validation across all four profiles are complete. Fixed Linux CI signed evidence remains pending, so P4b formal acceptance and G11 are incomplete. P5 and T4–T6 have not started.
+Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0–P4a, local P5 acceptance and T0–T6 are complete. P4b implementation and local real-gdb validation across all four profiles are complete. Fixed Linux CI signed evidence remains pending, so P4b formal acceptance and G11 are incomplete.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -33,9 +33,10 @@ Language/semantic/diagnostic changes must first update the [TC Language and Comp
 ## Build and test
 
 ```sh
-cmake -S . -B .tmp/build
-cmake --build .tmp/build
-ctest --test-dir .tmp/build --output-on-failure
+python3 tests/run.py --preset fast
+python3 tests/run.py --preset ci
+# Full local verification
+python3 tests/run.py --build-dir .tmp/build
 ```
 
 Builds the private `tc_core` library and the `tc`/`tc-vm`/`tc-aot` entry points.
@@ -65,13 +66,16 @@ four profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architectural PCs rema
 `code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted. ARM clients need
 `set arm force-mode thumb`; the GDB 18.1 ARM `stepi` limitation is covered by
 verifying the same RSP step with maintenance packet `s` and a register-cache flush.
-The P1/P2/P3/P4a/P4b/T1/T2/T3 test entry points are
+T4 adds diagnostic JSONL; T5 adds presets, fixed labels, unified `tests/run.py` and
+`tc-reduce`; T6 verifies repeatable and root-independent three-architecture debug artifacts.
+The P1/P2/P3/P4a/P4b/T1/T2/T3/T4/T5/T6 test entry points are
 `project.manifest`, `project.init`, `project.init_fault`, `project.paths_unit`,
 `project.paths`, `project.paths_aot`, `project.test_runner`, `linemap.unit`,
 `p4a.debug`, `toolchain.debug_elf`, `toolchain.g11_evidence`, `t1.observe`, `t2.debug`, `t2.gdb`, `gdb_journal.unit`, `gdb_rsp.unit`,
-`vm.gdb.protocol`, `vm.gdb.semantics` and `vm.gdb.e2e`, runnable with
-`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.'
---output-on-failure`. There are 92 registered tests; G11 evidence collection/validation
+`vm.gdb.protocol`, `vm.gdb.semantics`, `vm.gdb.e2e`, `t4.diag`,
+`toolchain.diag_json`, `toolchain.presets`, `toolchain.reduce` and `release.t6_repro`, runnable with
+`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)'
+--output-on-failure`. There are 99 registered tests; G11 evidence collection/validation
 and a manual signing job are wired. A real signed artifact from fixed Linux CI
 remains pending, so P4b formal acceptance and G11 are incomplete.
 The S7/S8/S9/S10 differential/toolchain tests need `clang`, `llvm-ar`, `ld.lld`,

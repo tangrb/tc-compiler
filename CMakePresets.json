@@ -1,0 +1,89 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "fast",
+      "displayName": "Fast local tests",
+      "binaryDir": "${sourceDir}/.tmp/build-fast",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TC_ENABLE_AOT_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "ci",
+      "displayName": "Full CI tests",
+      "binaryDir": "${sourceDir}/.tmp/build-ci",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release verification",
+      "binaryDir": "${sourceDir}/.tmp/build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "fast",
+      "configurePreset": "fast"
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "fast",
+      "configurePreset": "fast",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      },
+      "filter": {
+        "include": {
+          "label": "^fast$"
+        }
+      }
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "exclude": {
+          "name": "conformance.s10_long_branch"
+        }
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    }
+  ]
+}

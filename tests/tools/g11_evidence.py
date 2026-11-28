@@ -40,6 +40,8 @@ REQUIRED_SUITE_CASES = {
     },
     "toolchain.debug_smoke": {
         "aarch64-baremetal:qemu-gdbstub-source-breakpoint": {"aarch64-baremetal"},
+        "arm32-baremetal:qemu-gdbstub-source-breakpoint": {"arm32-baremetal"},
+        "riscv32-baremetal:qemu-gdbstub-source-breakpoint": {"riscv32-baremetal"},
     },
 }
 REQUIRED_SUITES = set(REQUIRED_SUITE_CASES)
@@ -381,7 +383,9 @@ def collect_evidence(build_dir: Path, output_dir: Path,
             raise RuntimeError(f"missing build artifact: {path}")
     gdb = required_gdb()
     dwarfdump = required_tool("llvm-dwarfdump")
-    qemu = required_tool("qemu-system-aarch64")
+    qemu_aarch64 = required_tool("qemu-system-aarch64")
+    qemu_arm32 = required_tool("qemu-system-arm")
+    qemu_riscv32 = required_tool("qemu-system-riscv32")
     version = subprocess.run([gdb, "--version"], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, timeout=30)
     gdb_version = (version.stdout + version.stderr).decode("utf-8", "replace")
@@ -423,8 +427,14 @@ def collect_evidence(build_dir: Path, output_dir: Path,
             "name": "toolchain.debug_smoke",
             "profiles": required_suite_profiles("toolchain.debug_smoke"),
             "cases": list(REQUIRED_SUITE_CASES["toolchain.debug_smoke"]),
-            "commands": [[python, str(ROOT / "tests" / "tools" / "t2_gdb_test.py"),
-                          str(aot), qemu, gdb]],
+            "commands": [
+                [python, str(ROOT / "tests" / "tools" / "t2_gdb_test.py"),
+                 str(aot), qemu_aarch64, gdb, "--profile=aarch64-baremetal"],
+                [python, str(ROOT / "tests" / "tools" / "t2_gdb_test.py"),
+                 str(aot), qemu_arm32, gdb, "--profile=arm32-baremetal"],
+                [python, str(ROOT / "tests" / "tools" / "t2_gdb_test.py"),
+                 str(aot), qemu_riscv32, gdb, "--profile=riscv32-baremetal"],
+            ],
         },
     )
     output_dir.mkdir(parents=True, exist_ok=True)

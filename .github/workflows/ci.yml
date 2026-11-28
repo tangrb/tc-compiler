@@ -41,7 +41,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang lld llvm qemu-system-aarch64 qemu-system-arm qemu-system-riscv gdb
+          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-riscv gdb
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
@@ -66,10 +66,10 @@ jobs:
         # The 30000-instruction far-branch case peaks near 5 GB RSS during the
         # AOT build; hosted runners are killed by macOS or lose the agent
         # under that pressure. It still runs in local full verification.
-        run: ctest --test-dir build --output-on-failure -E conformance.s10_long_branch
+        run: python3 tests/run.py --build-dir build --no-build -- -E conformance.s10_long_branch
 
   gdb-evidence:
-    # Manual until the frozen 32-bit code_ptr conflict is resolved and signed evidence can pass.
+    # Manual signed-evidence job for the frozen Linux toolchain.
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-26.04
     timeout-minutes: 30
@@ -104,7 +104,7 @@ jobs:
             bash -lc '
               set -e
               apt-get update -qq
-              apt-get install -y -qq ca-certificates clang cmake git lld llvm python3 qemu-system-aarch64 qemu-system-arm qemu-system-riscv gdb-multiarch
+              apt-get install -y -qq ca-certificates clang cmake git lld llvm python3 qemu-system-arm qemu-system-riscv gdb-multiarch
               cmake -S . -B build -DCMAKE_C_COMPILER=clang
               cmake --build build -j "$(nproc)"
               python3 tests/tools/g11_evidence.py \

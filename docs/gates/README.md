@@ -18,8 +18,8 @@
 | G10 | S10 多目标扩展与长期回归 | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
 | G11 | 0.0.47 工具链与工程模型 | **未完成** | 本页当前状态 |
 
-**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0/T0、P1、P2、P3、
-P4a、T1、T2 与 T3 已完成：版本拆分、三个私有入口、共享实现级退出码映射、`tc` CLI 契约、
+**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0–P4a、P5 本地验收与
+T0–T6 已完成：版本拆分、三个私有入口、共享实现级退出码映射、`tc` CLI 契约、
 发布审计、`tc --init-project` 完整模板/原子写入/回滚/身份检查、`tc.project` v1
 解析与最近根发现，以及 manifest/include/profile 的编译器消费。canonical 路径与
 工程根相对显示路径已分离，诊断、IR、VM trap 与 AOT 源字符串统一使用显示路径；
@@ -40,16 +40,17 @@ qemu gdbstub 已验证 `info line`、源码断点与单步，证据入口为 `t2
 断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin，
 默认只读且 `--gdb-allow-write` 仅开放受限写入。证据入口为 `gdb_journal.unit`、
 `gdb_rsp.unit`、`vm.gdb.protocol`（242 checks）、`vm.gdb.semantics` 与
-`vm.gdb.e2e`；前四项为 fast，e2e 不属于 fast。P4b 已完成私有 VM 调试 ELF writer
+`vm.gdb.e2e`；这些真实/协议调试测试均不属于 fast。P4b 已完成私有 VM 调试 ELF writer
 与四种 profile 的本地真实 gdb 验证：`tc-vm --gdb-elf-out=<path>` 复用共享行表与
 合成地址，`toolchain.debug_elf` 已验证调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、
 IR 单步与程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为
 `code_ptr`（AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；
 GDB 18.1 的 ARM `stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet
-`s` 与 flush register-cache 验证同一 RSP 单步。G11 证据收集/校验与手动签名作业
-已接入；固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 未完成，
-P5 与 T4–T6 尚未开始。
-0.0.47 CTest 注册总数 92，收尾检查 51 项。
+`s` 与 flush register-cache 验证同一 RSP 单步。T4 已完成诊断 JSONL；T5 已完成
+presets、固定标签、统一测试入口与 `tc-reduce`；T6 已完成三架构调试产物重复/跨根
+字节一致性。G11 证据收集/校验与手动签名作业已接入；固定 Linux CI 真实签名
+artifact 尚未完成，P4b 正式验收与 G11 未完成。
+0.0.47 CTest 注册总数 99，收尾检查 51 项。
 0.0.46 已验收 harness 873/873。
 前端、CT/IR、运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、
 W=32 RISC-V `riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、
@@ -64,7 +65,7 @@ design §12 十五项均有套件映射。
 cmake -S . -B .tmp/build
 cmake --build .tmp/build
 ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)' --output-on-failure
 python3 tests/conformance/static/s1_cases.py --check
 python3 tests/conformance/static/s2s3_cases.py --check
 python3 tests/conformance/static/s4_cases.py --check

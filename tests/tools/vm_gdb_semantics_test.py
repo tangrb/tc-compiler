@@ -8,7 +8,14 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from vm_gdb_protocol_test import ROOT, SOURCE, Stub, check, environment, linemap, reg_value
+from vm_gdb_protocol_test import BASE, BASE32, ROOT, SOURCE, Stub, check, environment, linemap, reg_value
+
+PROFILES = {
+    "aarch64-linux-user": (BASE, 0x22),
+    "aarch64-baremetal": (BASE, 0x22),
+    "arm32-baremetal": (BASE32, 0x11),
+    "riscv32-baremetal": (BASE32, 0x21),
+}
 
 TRAP_SOURCE = """#program
 var a: int32 = copy int32, 7
@@ -18,26 +25,27 @@ _ = writeln int32, b
 """
 
 
-def normal(tool: str, root: Path, source: str) -> subprocess.CompletedProcess:
+def normal(tool: str, root: Path, source: str, profile: str) -> subprocess.CompletedProcess:
     (root / "main.tc").write_text(source, encoding="utf-8")
     (root / "tc.project").write_text('tc-project 1\nname = "vm-gdb"\n', encoding="utf-8")
     if source == SOURCE:
         from vm_gdb_protocol_test import LIBRARY
         (root / "lib.tc").write_text(LIBRARY, encoding="utf-8")
-    return subprocess.run([tool, "--trace=trap", "main.tc"], cwd=root,
+    return subprocess.run([tool, f"--profile={profile}", "--trace=trap", "main.tc"], cwd=root,
                           env=environment(root), capture_output=True, timeout=30)
 
 
-def compare(tool: str, base: Path, source: str, paused: bool) -> None:
-    name = ("trap" if source == TRAP_SOURCE else "normal") + ("-paused" if paused else "-continue")
+def compare(tool: str, base: Path, source: str, paused: bool, profile: str) -> None:
+    name = profile + "-" + ("trap" if source == TRAP_SOURCE else "normal") + \
+        ("-paused" if paused else "-continue")
     root = base / name
     root.mkdir()
-    expected = normal(tool, root, source)
+    expected = normal(tool, root, source, profile)
     debug_root = base / (name + "-gdb")
-    stub = Stub(tool, debug_root, source)
+    stub = Stub(tool, debug_root, source, profile=profile)
     try:
         client = stub.client()
-        count = len(linemap(tool, debug_root)["entries"])
+        count = len(linemap(tool, debug_root, profile)["entries"])
         replies = []
         for _ in range(count + 4):
             reply = client.send_packet(b"s" if paused else b"c")
@@ -54,7 +62,8 @@ def compare(tool: str, base: Path, source: str, paused: bool) -> None:
             trap = client.monitor("monitor trap")
             check("TC_RE_DIV_ZERO" in trap, f"{name}: first trap diagnostic differs")
         else:
-            check(reg_value(client, 0x22) != 0, f"{name}: missing termination PC")
+            check(reg_value(client, PROFILES[profile][1]) != 0,
+                  f"{name}: missing termination PC")
         check(client.send_packet(b"D") == b"OK", f"{name}: terminated detach")
         client.close()
         stub.process.wait(timeout=10)
@@ -71,10 +80,11 @@ def main() -> int:
     (ROOT / ".tmp").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="vm-gdb-semantics-", dir=ROOT / ".tmp") as tmp:
         base = Path(tmp)
-        for source in (SOURCE, TRAP_SOURCE):
-            compare(tool, base, source, False)
-            compare(tool, base, source, True)
-    print("vm.gdb.semantics: stdout, first trap and exit status agree")
+        for profile in PROFILES:
+            for source in (SOURCE, TRAP_SOURCE):
+                compare(tool, base, source, False, profile)
+                compare(tool, base, source, True, profile)
+    print("vm.gdb.semantics: stdout, first trap and exit status agree across four profiles")
     return 0
 
 

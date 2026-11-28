@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支目标是在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0/T0 治理与三入口契约、P1 工程初始化与 manifest/根发现 API、P2 canonical/显示路径与编译器路径消费、P3 工程测试 runner、P4a AOT 行表/调试信息、T1 VM/AOT 观测、T2 源级映射与 T3 VM GDB 调试均已完成；P4b 本地实现与四种 profile 的真实 gdb 验证已完成，固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与 G11 未完成。P5 与 T4–T6 尚未开始。
+感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支目标是在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0–P4a、P5 本地验收与 T0–T6 已完成；P4b 本地实现与四种 profile 的真实 gdb 验证已完成，固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与 G11 未完成。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
@@ -33,9 +33,10 @@ English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 ## 构建与测试
 
 ```sh
-cmake -S . -B .tmp/build
-cmake --build .tmp/build
-ctest --test-dir .tmp/build --output-on-failure
+python3 tests/run.py --preset fast
+python3 tests/run.py --preset ci
+# 完整本地验证
+python3 tests/run.py --build-dir .tmp/build
 ```
 
 构建私有 `tc_core` 与 `tc`/`tc-vm`/`tc-aot` 入口。编译器支持 `--syntax-only`/`--sem-only`/
@@ -58,15 +59,17 @@ restart、原子 stdout journal、可恢复 stdin 与可选受限写入。P4b �
 程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`
 （AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受；ARM 客户端需 `set arm force-mode thumb`，
 GDB 18.1 的 ARM `stepi` 限制由 maintenance packet `s` 与 flush register-cache
-的同一 RSP 单步验证覆盖。
-P1/P2/P3/P4a/P4b/T1/T2/T3 测试入口为 `project.manifest`、`project.init`、
+的同一 RSP 单步验证覆盖。T4 已实现诊断 JSONL；T5 已实现 presets、固定标签、
+统一 `tests/run.py` 与 `tc-reduce`；T6 已验证三架构调试产物重复/跨根字节一致性。
+P1/P2/P3/P4a/P4b/T1/T2/T3/T4/T5/T6 测试入口为 `project.manifest`、`project.init`、
 `project.init_fault`、`project.paths_unit`、`project.paths`、`project.paths_aot`、
 `project.test_runner`、`linemap.unit`、`p4a.debug`、`toolchain.debug_elf`、
 `toolchain.g11_evidence`、`t1.observe`、`t2.debug`、`t2.gdb`、
-`gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`、`vm.gdb.semantics` 与
-`vm.gdb.e2e`，可用
-`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.'
---output-on-failure` 运行。当前注册 92 项；G11 证据收集/校验与手动签名作业已接入，
+`gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`、`vm.gdb.semantics`、
+`vm.gdb.e2e`、`t4.diag`、`toolchain.diag_json`、`toolchain.presets`、
+`toolchain.reduce` 与 `release.t6_repro`，可用
+`ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)'
+--output-on-failure` 运行。当前注册 99 项；G11 证据收集/校验与手动签名作业已接入，
 固定 Linux CI 真实签名 artifact 仍待完成，P4b 正式验收与 G11 未完成。
 AOT 差分/工具链测试需要 `clang`、`llvm-ar`、`ld.lld`、`qemu-system-aarch64`、
 `qemu-system-arm` 与 `qemu-system-riscv32`；P4a 另需 `llvm-dwarfdump`，T2/T3 另需 `gdb`。

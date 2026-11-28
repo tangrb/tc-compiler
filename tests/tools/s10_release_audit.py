@@ -164,6 +164,16 @@ def check_release_surface(failures: list[str]) -> None:
         failures.append(f"{CASE_ID}: limits do not use tc_error_internal")
 
 
+def check_debug_reproducibility(failures: list[str]) -> None:
+    driver = read("src/driver/aot_driver.c")
+    for flag in ("-gdwarf-4", "-fdebug-compilation-dir=."):
+        if flag not in driver:
+            failures.append(f"{CASE_ID}: debug toolchain lacks {flag}")
+    cmake = read("tests/CMakeLists.txt")
+    if "determinism/t6_reproducibility.py" not in cmake:
+        failures.append(f"{CASE_ID}: T6 reproducibility gate is not registered")
+
+
 def check_artifacts(failures: list[str]) -> None:
     sys.path.insert(0, str(ROOT / "tests"))
     from diff import arm32_engine as engine  # noqa: E402
@@ -352,7 +362,8 @@ def selftest() -> int:
             globals()["read"] = original_read
         return failures
 
-    for checker in (check_codes, check_release_surface, check_docs):
+    for checker in (check_codes, check_release_surface,
+                    check_debug_reproducibility, check_docs):
         failures: list[str] = []
         checker(failures)
         if failures:
@@ -364,6 +375,10 @@ def selftest() -> int:
         ("src/diagnostic/codes.inc",
          lambda text: re.sub(r"\bTC_CE_[A-Z0-9_]+\b", "TC_CE_MUTATED",
                              text, count=1), check_codes),
+        ("src/driver/aot_driver.c",
+         lambda text: text.replace("-fdebug-compilation-dir=.",
+                                   "-fdebug-compilation-dir=/tmp"),
+         check_debug_reproducibility),
         ("src/CMakeLists.txt",
          lambda text: text.replace("target_include_directories(tc_core PRIVATE",
                                    "target_include_directories(tc_core PUBLIC"),
@@ -424,6 +439,7 @@ def main() -> int:
     failures: list[str] = []
     check_codes(failures)
     check_release_surface(failures)
+    check_debug_reproducibility(failures)
     check_artifacts(failures)
     check_docs(failures)
     if args.require_g11_evidence is not None:

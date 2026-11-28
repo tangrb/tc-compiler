@@ -1,9 +1,14 @@
 /* Shared compiler CLI parsing and implementation-error exit mapping. */
 #include "driver/cli.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "contract/contract.h"
 
@@ -40,6 +45,100 @@ int tc_impl_error_exit(TcImplError error) {
     default:
         return TC_EXIT_INTERNAL;
     }
+}
+
+static int reduce_protocol_active;
+static int reduce_protocol_failed;
+static FILE *reduce_diag_stream;
+
+static int parse_fd_number(const char *text, int *out) {
+    unsigned long value = 0u;
+    const unsigned char *cursor = (const unsigned char *)text;
+    if (cursor == NULL || *cursor == '\0') {
+        return 0;
+    }
+    while (*cursor != '\0') {
+        if (*cursor < (unsigned char)'0' || *cursor > (unsigned char)'9') {
+            return 0;
+        }
+        value = value * 10u + (unsigned long)(*cursor - (unsigned char)'0');
+        if (value > 2147483647u) {
+            return 0;
+        }
+        cursor++;
+    }
+    *out = (int)value;
+    return 1;
+}
+
+void tc_cli_reduce_protocol_init(void) {
+    const char *diag_fd_text = getenv("TC_REDUCE_DIAG_FD");
+    const char *exec_fd_text = getenv("TC_REDUCE_EXEC_FD");
+    int fd = -1;
+    if (exec_fd_text != NULL && parse_fd_number(exec_fd_text, &fd) && fd >= 3) {
+        struct stat st;
+        if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) &&
+            (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
+            (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
+            (void)close(fd);
+        }
+    }
+    (void)unsetenv("TC_REDUCE_EXEC_FD");
+    if (diag_fd_text == NULL || !parse_fd_number(diag_fd_text, &fd) || fd < 3 ||
+        fcntl(fd, F_GETFD) < 0) {
+        (void)unsetenv("TC_REDUCE_DIAG_FD");
+        return;
+    }
+    if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
+        reduce_protocol_active = 1;
+        reduce_protocol_failed = 1;
+        (void)unsetenv("TC_REDUCE_DIAG_FD");
+        return;
+    }
+    reduce_diag_stream = fdopen(fd, "w");
+    if (reduce_diag_stream == NULL) {
+        reduce_protocol_active = 1;
+        reduce_protocol_failed = 1;
+        (void)close(fd);
+        (void)unsetenv("TC_REDUCE_DIAG_FD");
+        return;
+    }
+    reduce_protocol_active = 1;
+    (void)unsetenv("TC_REDUCE_DIAG_FD");
+}
+
+int tc_cli_reduce_protocol_active(void) {
+    return reduce_protocol_active;
+}
+
+int tc_cli_reduce_protocol_failed(void) {
+    return reduce_protocol_failed;
+}
+
+FILE *tc_cli_diag_stream(void) {
+    return reduce_protocol_active ? reduce_diag_stream : stderr;
+}
+
+static int reduce_auth_failed(void) {
+    return tc_cli_write(stderr, "tc-reduce: authentication failed\n") != 0 ||
+                   tc_cli_flush(stderr) != 0
+               ? TC_EXIT_UNAVAILABLE
+               : TC_EXIT_INTERNAL;
+}
+
+int tc_cli_print_reduce_auth(const char *argv0) {
+    struct stat st;
+    if (argv0 == NULL || stat(argv0, &st) != 0 || !S_ISREG(st.st_mode)) {
+        return reduce_auth_failed();
+    }
+    if (tc_cli_write(stdout,
+                     "{\"dev\":%llu,\"ino\":%llu,\"version\":\"%s\"}\n",
+                     (unsigned long long)st.st_dev,
+                     (unsigned long long)st.st_ino, TC_TOOLCHAIN_VERSION) != 0 ||
+        tc_cli_flush(stdout) != 0) {
+        return TC_EXIT_UNAVAILABLE;
+    }
+    return TC_EXIT_OK;
 }
 
 void tc_cli_options_init(TcCliOptions *options) {

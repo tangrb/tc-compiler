@@ -16,7 +16,7 @@ P3 新增 `project.test_runner`，覆盖发现/筛选、fd 锚定 beneath 解析
 最小 DWARF v4、跨根确定性、非 debug 字节与 VM/AOT 输出保护边界；T1 新增
 `t1.observe`，覆盖 VM/AOT `--dump-ir`、VM `--trace=ir,call,mem,io,trap` 的
 text/jsonl/limit/output、VM/AOT `--stats`、结构化 trap 上下文、显式输出身份/预留保护
-与确定性观测输出；T2 新增 `t2.debug` 与 `t2.gdb`，覆盖 VM/AOT `--dump-linemap`、
+与确定性观测输出；T2 新增 `t2.debug` 与 `t2.gdb`/`t2.gdb.arm32`/`t2.gdb.riscv32`，覆盖 VM/AOT `--dump-linemap`、
 公开 `tc-aot --debug`、全 IR 行表映射、VM 合成地址、稳定键序/external、trace 多对一、
 跨根确定性、输出安全，以及 qemu gdbstub 上真实 gdb 的 `info line`、源码断点与单步；
 T3 新增 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（242 checks）、
@@ -26,8 +26,13 @@ T3 新增 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`（242 checks�
 P4b 新增 `toolchain.debug_elf`，覆盖四种档案的独立 ELF/DWARF 解码与真实 gdb
 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步和程序语义回归；G11 新增
 `toolchain.g11_evidence`，覆盖证据 schema、精确用例矩阵、摘要与 provenance 校验。
+T4 新增 `t4.diag` 与 `toolchain.diag_json`，覆盖稳定 JSONL schema、80 码映射与文本诊断
+同序；T5 新增 `toolchain.presets` 与 `toolchain.reduce`，覆盖 presets、固定标签、统一
+运行器、认证、指纹保持、身份保护、超时、stdin 快照与原子交付；T6 新增
+`release.t6_repro`，覆盖三架构调试 `asm/obj/elf/flat` 的重复与跨根字节一致性。
 所有临时脚本、fixture 与编译产物置于项目 `.tmp/`，版本控制测试源仍位于 `tests/`。
-T3 前四项为 `unit`/`toolchain`/`fast`，`vm.gdb.e2e` 为 `toolchain`/`aot` 且不属于 fast；
+T3 的 journal/RSP/协议/语义测试为 `unit`/`toolchain`/`slow`，`vm.gdb.e2e` 为
+`unit`/`toolchain`/`aot` 且不属于 fast；
 [工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
 [工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)，在实现并注册前不得作为当前套件或
 PASS 证据。
@@ -40,28 +45,29 @@ PASS 证据。
 | Harness | `harness/` | — | 元数据解析、7 判定器、失败关闭自测、root-module `--syntax-only`/`--static-only` adapter |
 | Traceability | `traceability/` | — | 80 码表、结构性覆盖矩阵、生成器检查、矩阵 case id 存在性交叉检查 |
 | Golden | `golden/` | L3/L4 | 规范推导的期望值及规范来源；`validate.py` 校验诊断与运行时 golden，`run.py` 执行 w32/w64 运行时 golden |
-| Tools | `tools/` | L6 | `tc`/`tc-vm`/`tc-aot` CLI 契约（三入口版本、工程 CLI 语法、`--test` 发现/筛选与失败关闭、用法/档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝、关闭 stdout/stderr、无副作用）；T1 `t1.observe`（IR/trace/stats、trap 上下文、输出身份/预留保护与确定性）；T2 `t2.debug`/`t2.gdb`（共享行表、公开 debug/DWARF v4、输出安全、真实 qemu/gdb 断点与单步）；T3 `vm.gdb.protocol`/`vm.gdb.semantics`/`vm.gdb.e2e`（协议、语义与真实 gdb；e2e 非 fast）；P4b `toolchain.debug_elf`（四种档案 ELF/DWARF 与真实 gdb）；G11 `toolchain.g11_evidence`（证据结构、矩阵、摘要与 provenance）；S10 发布审计（80 码闭集、私有 core、三个 CLI、freestanding 符号、文档/版本一致性）及审计变异自测 |
-| Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON（S1/S2-S3/S4/S5/S6）；S7/S8/S9/S10 零 pass/ELF 构建/执行稳定性与 checked/release 分离 |
+| Tools | `tools/` | L6 | `tc`/`tc-vm`/`tc-aot` CLI 契约（三入口版本、工程 CLI 语法、`--test` 发现/筛选与失败关闭、用法/档案、部分检查、诊断、实现错误、AOT 产物/显式拒绝、关闭 stdout/stderr、无副作用）；T1 `t1.observe`（IR/trace/stats、trap 上下文、输出身份/预留保护与确定性）；T2 `t2.debug`/`t2.gdb`（共享行表、公开 debug/DWARF v4、输出安全、真实 qemu/gdb 断点与单步）；T3 `vm.gdb.protocol`/`vm.gdb.semantics`/`vm.gdb.e2e`（协议、语义与真实 gdb；均非 fast）；P4b `toolchain.debug_elf`（四种档案 ELF/DWARF 与真实 gdb）；G11 `toolchain.g11_evidence`（证据结构、矩阵、摘要与 provenance）；T4 `t4.diag`/`toolchain.diag_json`；T5 `toolchain.presets`/`toolchain.reduce`；T6 与 S10 发布审计（跨根/重复产物、80 码闭集、私有 core、三个 CLI、freestanding 符号、文档/版本一致性）及审计变异自测 |
+| Determinism | `determinism/` | L7 | 重复运行、哈希种子/顺序扰动、逐字节一致的 harness JSON（S1/S2-S3/S4/S5/S6）；S7/S8/S9/S10 零 pass/ELF 构建/执行稳定性与 checked/release 分离；T6 三架构调试 asm/obj/elf/flat 重复与跨根字节一致性 |
 | Docs | `tools/docs_cleanup_check.py` | — | 文档收尾门禁：无过程/历史叙事、门禁记录简短、changelog 版本不重复 |
 
 运行：
 
 ```sh
-cmake -S . -B .tmp/build && cmake --build .tmp/build
-ctest --test-dir .tmp/build --output-on-failure
-# P1/P2/P3/P4a/P4b/T1/T2/T3/G11 工程模型与调试测试
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence)|^t1\.|^t2\.|^gdb_|^vm\.gdb\.' --output-on-failure
-ctest --test-dir .tmp/build -L 'unit;toolchain;fast' --output-on-failure
+python3 tests/run.py --preset fast
+python3 tests/run.py --preset ci
+# P1/P2/P3/P4a/P4b/T1–T6/G11 工程模型与调试测试
+ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)' --output-on-failure
+ctest --test-dir .tmp/build -L '^fast$' --output-on-failure
 ```
 
 `project.manifest`、`project.init`、`project.init_fault` 与更新的 `cli.contract`
 共同构成 P1 当前回归入口；`project.paths_unit`、`project.paths` 与
 `project.paths_aot` 构成 P2 当前回归入口；`project.test_runner` 构成 P3 当前回归入口；`linemap.unit` 与 `p4a.debug` 构成 P4a
-当前回归入口；`t1.observe` 构成 T1 当前回归入口；`t2.debug` 与 `t2.gdb` 构成 T2
+当前回归入口；`t1.observe` 构成 T1 当前回归入口；`t2.debug` 与 `t2.gdb`/`t2.gdb.arm32`/`t2.gdb.riscv32` 构成 T2
 当前回归入口；T3 的 `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol` 与
-`vm.gdb.semantics` 构成 fast 回归入口，`vm.gdb.e2e` 为非 fast 的端到端回归入口；
+`vm.gdb.semantics` 构成 slow 调试回归入口，`vm.gdb.e2e` 为非 fast 的端到端回归入口；
 `toolchain.debug_elf` 构成 P4b 回归入口，`toolchain.g11_evidence` 构成 G11 证据基础设施
-回归入口；标签筛选使用 CTest 的标签匹配语法。
+回归入口；`t4.diag`/`toolchain.diag_json`、`toolchain.presets`/`toolchain.reduce` 与
+`release.t6_repro` 分别构成 T4、T5 与 T6 回归入口；标签筛选使用 CTest 的标签匹配语法。
 
 门禁使用 adapter 且不允许 `not_implemented`；缺失、跳过、超时、崩溃均为失败。
 每次阶段/分支收尾还必须通过 `docs.cleanup`（见 `AGENTS.md` 的“收尾工作”）。
@@ -132,7 +138,7 @@ provenance 源提交；发布审计可通过 `--require-g11-evidence=<artifact-d
 手动 CI 作业要求输入钉住的容器 digest，并为 `result.json` 与 `transcript.log` 生成 attestation。
 固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 仍未完成。
 
-0.0.47 CTest 注册总数 92（P0 基线 73 + P1 三项 + P2 三项 + P3 一项 + P4a 两项 + P4b 一项 + T1 一项 + T2 两项 + T3 五项 + G11 证据一项），收尾检查 51 项。
+0.0.47 CTest 注册总数 99，收尾检查 51 项。
 0.0.46 harness 873/873
 （608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、ct 370、
 ir 674、vm 514、aot 81、oom 383。S9 平台套件另有 29 个固定 ARM32 用例、

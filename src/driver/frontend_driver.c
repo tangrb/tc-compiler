@@ -49,7 +49,7 @@ static int json_string(FILE *out, const char *value) {
 
 static int print_diag_json(const TcSpan *span, TcStage stage, TcDiagCode code) {
     const TcDiagInfo *info = tc_diag_info(code);
-    FILE *out = stderr;
+    FILE *out = tc_cli_diag_stream();
     if (tc_cli_write(out, "{\"code\":") != 0 ||
         json_string(out, info != NULL ? info->symbol : "TC_CE_SYNTAX") != 0 ||
         tc_cli_write(out, ",\"severity\":\"error\",\"stage\":") != 0 ||
@@ -67,42 +67,45 @@ static int print_diag_json(const TcSpan *span, TcStage stage, TcDiagCode code) {
 }
 
 static int print_related_json(const TcSpan *span) {
-    return tc_cli_write(stderr, "{\"severity\":\"note\","
+    FILE *out = tc_cli_diag_stream();
+    return tc_cli_write(out, "{\"severity\":\"note\","
                         "\"note\":\"related position\",\"file\":") == 0 &&
-                   json_string(stderr, span->file != NULL ? span->file
+                   json_string(out, span->file != NULL ? span->file
                                                            : "<source>") == 0 &&
-                   tc_cli_write(stderr, ",\"line\":%u,\"col\":%u}\n",
+                   tc_cli_write(out, ",\"line\":%u,\"col\":%u}\n",
                                 span->line, span->column) == 0 &&
-                   tc_cli_flush(stderr) == 0
+                   tc_cli_flush(out) == 0
                ? TC_EXIT_DIAGNOSTIC
                : tc_impl_error_exit(TC_IMPL_IO);
 }
 
 static int print_invalid_byte_json(const TcSpan *span) {
-    return tc_cli_write(stderr, "{\"severity\":\"note\","
+    FILE *out = tc_cli_diag_stream();
+    return tc_cli_write(out, "{\"severity\":\"note\","
                         "\"note\":\"invalid byte offset\",\"file\":") == 0 &&
-                   json_string(stderr, span->file != NULL ? span->file
+                   json_string(out, span->file != NULL ? span->file
                                                            : "<source>") == 0 &&
-                   tc_cli_write(stderr, ",\"line\":%u,\"col\":%u,"
+                   tc_cli_write(out, ",\"line\":%u,\"col\":%u,"
                                 "\"offset\":%u}\n",
                                 span->line, span->column,
                                 span->invalid_byte_offset) == 0 &&
-                   tc_cli_flush(stderr) == 0
+                   tc_cli_flush(out) == 0
                ? TC_EXIT_DIAGNOSTIC
                : tc_impl_error_exit(TC_IMPL_IO);
 }
 
-static int print_byte_offset_note(const TcSpan *span) {
+static int print_byte_offset_note(FILE *out, const TcSpan *span) {
     if (span->invalid_byte_offset == TC_SPAN_NO_INVALID_BYTE) {
         return 0;
     }
-    return tc_cli_write(stderr, "%s:%u:%u: note: invalid byte offset %u\n",
+    return tc_cli_write(out, "%s:%u:%u: note: invalid byte offset %u\n",
                         span->file != NULL ? span->file : "<source>",
                         span->line, span->column, span->invalid_byte_offset);
 }
 
 static int print_frontend_diag(const TcFrontendDiag *diag, int json) {
     const TcDiagInfo *info = tc_diag_info(diag->code);
+    FILE *out = tc_cli_diag_stream();
     int failed;
     if (json) {
         int result = print_diag_json(&diag->span, diag->stage, diag->code);
@@ -115,7 +118,7 @@ static int print_frontend_diag(const TcFrontendDiag *diag, int json) {
         }
         return TC_EXIT_DIAGNOSTIC;
     }
-    failed = tc_cli_write(stderr, "%s:%u:%u: error[%s]: %s: %s\n",
+    failed = tc_cli_write(out, "%s:%u:%u: error[%s]: %s: %s\n",
                               diag->span.file != NULL ? diag->span.file
                                                       : "<source>",
                               diag->span.line, diag->span.column,
@@ -123,9 +126,9 @@ static int print_frontend_diag(const TcFrontendDiag *diag, int json) {
                               info != NULL ? info->symbol : "TC_CE_SYNTAX",
                               info != NULL ? info->print_name : "SyntaxError");
     if (failed == 0 && diag->stage == TC_STAGE_LEX) {
-        failed = print_byte_offset_note(&diag->span);
+        failed = print_byte_offset_note(out, &diag->span);
     }
-    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+    if (failed != 0 || tc_cli_flush(out) != 0) {
         return tc_impl_error_exit(TC_IMPL_IO);
     }
     return TC_EXIT_DIAGNOSTIC;
@@ -133,6 +136,7 @@ static int print_frontend_diag(const TcFrontendDiag *diag, int json) {
 
 static int print_analysis_diag(const TcAnalysisDiag *diag, int json) {
     const TcDiagInfo *info = tc_diag_info(diag->code);
+    FILE *out = tc_cli_diag_stream();
     int failed;
     if (json) {
         int result = print_diag_json(&diag->span, diag->stage, diag->code);
@@ -151,7 +155,7 @@ static int print_analysis_diag(const TcAnalysisDiag *diag, int json) {
         }
         return TC_EXIT_DIAGNOSTIC;
     }
-    failed = tc_cli_write(stderr, "%s:%u:%u: error[%s]: %s: %s\n",
+    failed = tc_cli_write(out, "%s:%u:%u: error[%s]: %s: %s\n",
                               diag->span.file != NULL ? diag->span.file
                                                       : "<source>",
                               diag->span.line, diag->span.column,
@@ -159,15 +163,15 @@ static int print_analysis_diag(const TcAnalysisDiag *diag, int json) {
                               info != NULL ? info->symbol : "TC_CE_SYNTAX",
                               info != NULL ? info->print_name : "SyntaxError");
     if (failed == 0 && diag->has_related) {
-        failed = tc_cli_write(stderr, "%s:%u:%u: note: related position\n",
+        failed = tc_cli_write(out, "%s:%u:%u: note: related position\n",
                               diag->related.file != NULL ? diag->related.file
                                                          : "<source>",
                               diag->related.line, diag->related.column);
     }
     if (failed == 0 && diag->stage == TC_STAGE_LEX) {
-        failed = print_byte_offset_note(&diag->span);
+        failed = print_byte_offset_note(out, &diag->span);
     }
-    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+    if (failed != 0 || tc_cli_flush(out) != 0) {
         return tc_impl_error_exit(TC_IMPL_IO);
     }
     return TC_EXIT_DIAGNOSTIC;
@@ -178,6 +182,9 @@ static int print_impl_error(const char *tool_name, TcImplError error,
     const char *symbol = tc_impl_error_symbol(error);
     const char *message = tc_impl_error_message(error);
     int failed;
+    if (tc_cli_reduce_protocol_active()) {
+        return tc_impl_error_exit(error);
+    }
     if (error == TC_IMPL_OOM) {
         failed = tc_cli_write(stderr, "%s: %s: %s: %s\n", tool_name,
                               tc_impl_error_symbol(error),
@@ -290,6 +297,9 @@ int tc_driver_report_cli_error(const char *tool_name,
     if (result != TC_EXIT_OK) {
         return result;
     }
+    if (tc_cli_reduce_protocol_active()) {
+        return TC_EXIT_USAGE;
+    }
     failed = tc_cli_write(stderr, "%s", options->parse_error);
     if (failed == 0) {
         failed = tc_cli_print_usage(stderr, tool_name);
@@ -375,6 +385,7 @@ static int print_vm_trap(const char *tool_name, const TcCliOptions *options,
     const char *func;
     const char *entity_kind;
     char op[64];
+    FILE *out = tc_cli_diag_stream();
     int failed;
     if (result == NULL || !result->trapped) {
         return TC_EXIT_INTERNAL;
@@ -390,30 +401,30 @@ static int print_vm_trap(const char *tool_name, const TcCliOptions *options,
     tc_observe_instr_name(result, linemap, op, sizeof(op));
     if (options != NULL && options->diag_format != NULL &&
         strcmp(options->diag_format, "json") == 0) {
-        failed = tc_cli_write(stderr, "{\"code\":") != 0 ||
-                 json_string(stderr, info != NULL ? info->symbol
+        failed = tc_cli_write(out, "{\"code\":") != 0 ||
+                 json_string(out, info != NULL ? info->symbol
                                                   : "TC_RE_TRAP") != 0 ||
-                 tc_cli_write(stderr, ",\"severity\":\"error\","
+                 tc_cli_write(out, ",\"severity\":\"error\","
                               "\"stage\":\"RT\",\"print_name\":") != 0 ||
-                 json_string(stderr, info != NULL ? info->print_name
+                 json_string(out, info != NULL ? info->print_name
                                                   : "Trap") != 0 ||
-                 tc_cli_write(stderr, ",\"file\":") != 0 ||
-                 json_string(stderr, file) != 0 ||
-                 tc_cli_write(stderr, ",\"line\":%u,\"col\":%u,"
+                 tc_cli_write(out, ",\"file\":") != 0 ||
+                 json_string(out, file) != 0 ||
+                 tc_cli_write(out, ",\"line\":%u,\"col\":%u,"
                               "\"func\":", result->span.line,
                               result->span.column) != 0 ||
-                 json_string(stderr, func) != 0 ||
-                 tc_cli_write(stderr, ",\"bb\":%u,\"insn\":%u,\"op\":",
+                 json_string(out, func) != 0 ||
+                 tc_cli_write(out, ",\"bb\":%u,\"insn\":%u,\"op\":",
                               result->bb, result->insn) != 0 ||
-                 json_string(stderr, op) != 0 ||
-                 tc_cli_write(stderr, ",\"depth\":%u,\"kind\":",
+                 json_string(out, op) != 0 ||
+                 tc_cli_write(out, ",\"depth\":%u,\"kind\":",
                               result->depth) != 0 ||
-                 json_string(stderr, entity_kind) != 0 ||
-                 tc_cli_write(stderr, ",\"module\":") != 0 ||
-                 json_string(stderr, module) != 0 ||
-                 tc_cli_write(stderr, "}\n") != 0;
+                 json_string(out, entity_kind) != 0 ||
+                 tc_cli_write(out, ",\"module\":") != 0 ||
+                 json_string(out, module) != 0 ||
+                 tc_cli_write(out, "}\n") != 0;
     } else {
-        failed = tc_cli_write(stderr,
+        failed = tc_cli_write(out,
                               "%s:%u:%u: error[RT]: %s: %s"
                               " [func=%s bb=%u insn=%u op=%s depth=%u"
                               " kind=%s module=%s]\n",
@@ -424,7 +435,7 @@ static int print_vm_trap(const char *tool_name, const TcCliOptions *options,
                               entity_kind, module);
     }
     (void)tool_name;
-    if (failed != 0 || tc_cli_flush(stderr) != 0) {
+    if (failed != 0 || tc_cli_flush(out) != 0) {
         return tc_impl_error_exit(TC_IMPL_IO);
     }
     return TC_EXIT_DIAGNOSTIC;

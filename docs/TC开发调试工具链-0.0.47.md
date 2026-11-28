@@ -1140,9 +1140,9 @@ RSP 的 `g`/`p` 寄存器编号由 `target.xml` 定义；`regnum` 只是 RSP 编
   寄存器/内存、monitor、断点/单步、断连重连、`RXX`、输入恢复与原子期刊故障注入；不依赖
   真实 gdb，进入常规 `ctest`。`vm.gdb.semantics` 比较无调试器、仅 continue、多次暂停后
   continue 三种场景的逻辑 stdout（期刊已提交记录拼接）、首个 trap 与退出状态。
-- 真实 gdb 端到端由固定 Linux CI 作业执行 `tests/tools/vm_gdb_e2e.py`、`vm.gdb.e2e`、
-  `toolchain.aot_debug` 与 `toolchain.debug_smoke`（全部适用 profile）。本地缺 gdb 可显式
-  跳过并记录原因，但不得记为 PASS；LLDB 只作机会性验证。
+- 真实 gdb 端到端由固定 Linux CI 作业执行 `tests/tools/vm_gdb_e2e.py`、CTest
+  `vm.gdb.e2e`，以及证据套件 `toolchain.aot_debug` 与 `toolchain.debug_smoke`（全部适用
+  profile）。本地缺 gdb 可显式跳过并记录原因，但不得记为 PASS；LLDB 只作机会性验证。
 - CI 保存 `build/gdb-e2e/result.json`、`transcript.log` 及平台 provenance 对两文件生成的
   签名 attestation。结果至少包含 `schema_version`、`status="PASS"`、提交 SHA、容器 digest、
   `gdb --version` 原文、profile、测试套件与用例名（含 AOT/qemu gdbstub）、非 SKIP 断言数。
@@ -1170,14 +1170,14 @@ PASS 证据。
 
 | 契约 | 测试入口 |
 | ---- | ---- |
-| 工程模型、三入口 CLI、manifest、init/test、路径与输出身份 | 见[TC 工程模型 0.0.47](TC工程模型-0.0.47.md) §9.1；`toolchain.cli_matrix`、`toolchain.output_aliases`、`toolchain.project_repro` |
-| IR dump、trace、stats、诊断 JSON、linemap（§5.3–§5.7、§5.10） | `toolchain.ir_dump`、`toolchain.trace_golden`、`toolchain.stats`、`toolchain.diag_json`、`toolchain.linemap` |
-| AOT 调试与代码生成不变量（§5.8） | `toolchain.aot_debug`、`toolchain.debug_smoke`、`toolchain.codegen_invariance` |
-| 调试实体、符号与成员边界（§5.4、§6.4、§6.6、§6.8） | `toolchain.debug_names`、`toolchain.member_identity`、`toolchain.debug_elf` |
-| RSP 协议、寄存器/内存、monitor、复位与调试 I/O（§6.1–§6.7） | `vm.gdb.protocol`、`vm.gdb.semantics`、`vm.gdb.e2e` |
+| 工程模型、三入口 CLI、manifest、init/test、路径与输出身份 | 见[TC 工程模型 0.0.47](TC工程模型-0.0.47.md) §9.1；`cli.contract`、`project.manifest`、`project.init`、`project.test_runner`、`project.paths_unit`、`project.paths`、`project.paths_aot`、`project.init_fault` |
+| IR dump、trace、stats、诊断 JSON、linemap（§5.3–§5.7、§5.10） | `t1.observe`、`t4.diag`、`toolchain.diag_json`、`linemap.unit`、`t2.debug` |
+| AOT 调试、代码生成不变量与可复现发布（§5.8、§7.2） | `p4a.debug`、`t2.debug`、`t2.gdb`、`t2.gdb.arm32`、`t2.gdb.riscv32`、`release.t6_repro` |
+| 调试实体、符号与成员边界（§5.4、§6.4、§6.6、§6.8） | `linemap.unit`、`t2.debug`、`toolchain.debug_elf` |
+| RSP 协议、寄存器/内存、monitor、复位与调试 I/O（§6.1–§6.7） | `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`、`vm.gdb.semantics`、`vm.gdb.e2e` |
 | reducer（§5.12） | `toolchain.reduce` |
-| 真实 gdb 证据与发布审计（§6.10、§7.2） | `toolchain.g11_evidence` |
-| CMake presets 与测试子集（§7.2） | `toolchain.presets` |
+| 真实 gdb 证据与发布审计（§6.10、§7.2） | `toolchain.g11_evidence`、`release.audit_selftest`、`release.s10_audit`、`release.t6_repro` |
+| CMake presets、统一测试入口与测试子集（§7.2） | `toolchain.presets` |
 
 标签集合固定为 `unit`、`conformance`、`toolchain`、`aot`、`slow`、`fast`；每个测试至少一个
 标签，`fast` 与 `slow` 互斥。`fast` 不依赖 gdb/qemu/clang/lld，且不含 scale/longterm/slow

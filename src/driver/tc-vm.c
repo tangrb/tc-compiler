@@ -6,6 +6,7 @@
  * reported as error[RT] and the profile's trap exit status is returned.
  */
 #include <stdio.h>
+#include <string.h>
 
 #include "contract/contract.h"
 #include "diagnostic/diagnostic.h"
@@ -19,11 +20,19 @@ int main(int argc, char **argv) {
     TcCliOptions options;
     TcCliParseResult parsed;
     tc_cli_ignore_sigpipe();
+    tc_cli_reduce_protocol_init();
+    if (tc_cli_reduce_protocol_failed()) {
+        return tc_impl_error_exit(TC_IMPL_IO);
+    }
+    if (argc == 2 && strcmp(argv[1], "--tc-reduce-auth") == 0) {
+        return tc_cli_print_reduce_auth(argv[0]);
+    }
     violation = tc_contract_check();
     if (violation != NULL) {
-        if (tc_cli_write(stderr, "tc-vm: tc_error_internal: %s\n", violation) !=
-                0 ||
-            tc_cli_flush(stderr) != 0) {
+        if (!tc_cli_reduce_protocol_active() &&
+            (tc_cli_write(stderr, "tc-vm: tc_error_internal: %s\n", violation) !=
+                 0 ||
+             tc_cli_flush(stderr) != 0)) {
             return tc_impl_error_exit(TC_IMPL_IO);
         }
         return tc_impl_error_exit(TC_IMPL_INTERNAL);

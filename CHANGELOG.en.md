@@ -67,8 +67,23 @@
   extended restart, an atomic stdout journal and resumable stdin. The default is
   read-only; `--gdb-allow-write` enables restricted writes.
 - **T3 tests**: register `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol`
-  (242 checks), `vm.gdb.semantics` and `vm.gdb.e2e`; the first four are fast,
-  while e2e is not fast.
+  (242 checks), `vm.gdb.semantics` and `vm.gdb.e2e`; none are fast.
+- **T4 diagnostic JSONL**: VM/AOT `--diag-format=json` emits stable,
+  deterministic records from the same ordered diagnostics and runtime traps as text,
+  preserving diagnostic codes and additional location/context fields.
+- **T4 tests**: register `t4.diag` and `toolchain.diag_json` for schema, key order,
+  UTF-8/invalid-byte offsets, notes and runtime-trap fields.
+- **T5 test infrastructure**: CMake presets, fixed mutually exclusive `fast`/`slow`
+  labels, the unified `tests/run.py` entry point and the authenticated `tc-reduce`
+  reducer with fingerprint preservation, candidate/timeout/stdin handling, input
+  and output identity protection and atomic delivery.
+- **T5 tests**: register `toolchain.presets` and `toolchain.reduce`.
+- **T6 reproducible releases**: debug artifacts pin DWARF v4 and
+  `-fdebug-compilation-dir=.`; repeat and same-depth cross-root builds of
+  AArch64/ARM32/RISC-V32 `asm/obj/elf/flat` are byte-identical and contain no
+  absolute source roots.
+- **T6 tests**: register `release.t6_repro` and extend the release audit's static
+  reproducibility checks and mutation self-tests.
 - **Unified implementation errors**: every entry point shares the `TcImplError`
   exit mapping. Host I/O, unavailable capabilities and actual OOM exit 70;
   usage exits 2; internal contract violations and documented limits exit 71.
@@ -92,18 +107,16 @@
 
 ### Status
 
-- There are 92 registered 0.0.47 CTests (73 at P0, three P1 tests, three P2 tests,
-  one P3 test, two P4a tests, one P4b test, one T1 test, two T2 tests, five T3 tests
-  and one G11 evidence test). G11 evidence collection/validation and a manual signing
-  job are wired, and local real-gdb validation passed across all four profiles. A real
-  signed artifact from fixed Linux CI remains pending, so P4b formal acceptance and
-  G11 are incomplete.
-- P0/T0, P1, P2, P3, P4a, T1, T2 and T3 are complete. P4b implementation and local
-  real-gdb validation across all four profiles are complete, and G11 evidence
+- There are 99 registered 0.0.47 CTests (48 fast). G11 evidence collection/validation
+  and a manual signing job are wired, and local real-gdb validation passed across all
+  four profiles. A real signed artifact from fixed Linux CI remains pending, so P4b
+  formal acceptance and G11 are incomplete.
+- P0–P4a, local P5 acceptance and T0–T6 are complete. P4b implementation and
+  local real-gdb validation across all four profiles are complete, and G11 evidence
   infrastructure is wired. A real signed artifact from fixed Linux CI remains
-  pending, so P4b formal acceptance and G11 are incomplete; P5 and T4–T6 have not
-  started. `tc --init-project`, compiler path consumption and `tc --test` are available.
-  VM/AOT `--dump-linemap` and public `tc-aot --debug` are available, and the real
+  pending, so P4b formal acceptance and G11 are incomplete. `tc --init-project`,
+  compiler path consumption and `tc --test` are available. VM/AOT
+  `--dump-linemap` and public `tc-aot --debug` are available, and the real
   qemu-gdbstub/gdb smoke test passed. The VM GDB stub provides an atomic stdout
   journal and resumable stdin. The VM debug ELF passes independent semantic decoding
   for all four profiles plus real-gdb debug ELF, source breakpoints, 64-bit

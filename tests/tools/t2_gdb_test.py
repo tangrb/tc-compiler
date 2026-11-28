@@ -20,6 +20,22 @@ _ = writeln int32, x
 _ = writeln int32, x
 """
 CHECKS = 0
+PROFILES = ("aarch64-baremetal", "arm32-baremetal", "riscv32-baremetal")
+
+
+def qemu_command(profile: str, qemu: str, port: int) -> list[str]:
+    if profile == "aarch64-baremetal":
+        return [qemu, "-M", "virt", "-cpu", "cortex-a53", "-m", "256M",
+                "-display", "none", "-monitor", "none",
+                "-serial", "stdio", "-serial", "file:uart1.txt",
+                "-gdb", f"tcp:127.0.0.1:{port}", "-S", "-kernel", "program.elf"]
+    if profile == "arm32-baremetal":
+        return [qemu, "-M", "mps2-an500", "-cpu", "cortex-m7", "-m", "16M",
+                "-display", "none", "-monitor", "none",
+                "-gdb", f"tcp:127.0.0.1:{port}", "-S", "-kernel", "program.elf"]
+    return [qemu, "-M", "virt", "-cpu", "rv32", "-m", "256M", "-bios", "none",
+            "-display", "none", "-monitor", "none",
+            "-gdb", f"tcp:127.0.0.1:{port}", "-S", "-kernel", "program.elf"]
 
 
 def check(condition: bool, message: str) -> None:
@@ -48,6 +64,7 @@ def main() -> int:
     parser.add_argument("aot")
     parser.add_argument("qemu")
     parser.add_argument("gdb")
+    parser.add_argument("--profile", choices=PROFILES, default="aarch64-baremetal")
     args = parser.parse_args()
     if not args.gdb:
         print("SKIP: real gdb is unavailable")
@@ -55,6 +72,12 @@ def main() -> int:
     aot = str(Path(args.aot).resolve())
     qemu = str(Path(args.qemu).resolve())
     gdb = str(Path(args.gdb).resolve())
+    if args.profile == "arm32-baremetal":
+        architecture = "arm"
+    elif args.profile == "riscv32-baremetal":
+        architecture = "riscv:rv32"
+    else:
+        architecture = "aarch64"
     TMP_ROOT.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="t2-gdb-", dir=TMP_ROOT) as tmp:
         root = Path(tmp)
@@ -65,7 +88,7 @@ def main() -> int:
         env.update({"LC_ALL": "C", "LANG": "C", "TZ": "UTC",
                     "TMPDIR": str(root)})
         build = subprocess.run(
-            [aot, "--debug", "--profile=aarch64-baremetal", "--emit=elf",
+            [aot, "--debug", f"--profile={args.profile}", "--emit=elf",
              "--output=program.elf", "main.tc"],
             cwd=root, env=env, capture_output=True, timeout=120)
         check(build.returncode == 0,
@@ -76,19 +99,19 @@ def main() -> int:
             reservation.bind(("127.0.0.1", 0))
             port = reservation.getsockname()[1]
         qemu_process = subprocess.Popen(
-            [qemu, "-M", "virt", "-cpu", "cortex-a53", "-m", "256M",
-             "-display", "none", "-monitor", "none",
-             "-serial", "stdio", "-serial", "file:uart1.txt",
-             "-gdb", f"tcp:127.0.0.1:{port}", "-S", "-kernel",
-             "program.elf"],
+            qemu_command(args.profile, qemu, port),
             cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         try:
             wait_for_port(port, qemu_process)
             commands = root / "smoke.gdb"
+            arm_mode = "set arm force-mode thumb\n" if architecture == "arm" else ""
+            step_command = ("maintenance packet s\n"
+                            "maintenance flush register-cache\n") if architecture == "arm" else "stepi\n"
             commands.write_text(
                 "set pagination off\n"
                 "set confirm off\n"
-                "set architecture aarch64\n"
+                f"set architecture {architecture}\n"
+                f"{arm_mode}"
                 "file program.elf\n"
                 f"target remote 127.0.0.1:{port}\n"
                 "info line main.tc:3\n"
@@ -98,7 +121,7 @@ def main() -> int:
                 "printf \"STOP_PC=0x%lx\\n\", $pc\n"
                 "x/i $pc\n"
                 "info line *$pc\n"
-                "stepi\n"
+                f"{step_command}"
                 "printf \"STEP_PC=0x%lx\\n\", $pc\n"
                 "disconnect\n"
                 "quit\n",
@@ -141,10 +164,9 @@ def main() -> int:
             check(qemu_process.returncode in (0, -15),
                   f"qemu smoke failed: {qemu_process.returncode} "
                   f"{qemu_stdout!r} {qemu_stderr!r}")
-    print(f"T2 real gdb smoke passed: {CHECKS} checks")
-    print("evidence-result=toolchain.debug_smoke/"
-          "aarch64-baremetal:qemu-gdbstub-source-breakpoint "
-          f"assertions={CHECKS}")
+    print(f"T2 real gdb smoke passed: {CHECKS} checks ({args.profile})")
+    print(f"evidence-result=toolchain.debug_smoke/"
+          f"{args.profile}:qemu-gdbstub-source-breakpoint assertions={CHECKS}")
     return 0
 
 
