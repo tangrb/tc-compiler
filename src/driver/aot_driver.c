@@ -804,18 +804,17 @@ static TcImplError preflight_one_output(const TcAotStdio *stdio,
             return TC_IMPL_OK;
         }
     } else if (!S_ISREG(path_stat.st_mode)) {
-        if (S_ISDIR(path_stat.st_mode) || S_ISSOCK(path_stat.st_mode)) {
+        if (S_ISDIR(path_stat.st_mode) || S_ISSOCK(path_stat.st_mode) ||
+            !allow_stdout || !stdio->descriptors[1].open ||
+            !same_identity(&path_stat, &stdio->descriptors[1].identity)) {
             return TC_IMPL_USAGE;
         }
-        if (open_output_fd(output->path,
-                           O_WRONLY | O_NONBLOCK | O_CLOEXEC, 0, output) < 0) {
-            return errno == ENXIO ? TC_IMPL_USAGE : open_error();
+        output->fd = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC,
+                           STDERR_FILENO + 1);
+        if (output->fd < 0) {
+            return TC_IMPL_IO;
         }
-        if (!allow_stdout || !stdio->descriptors[1].open ||
-            !same_identity(&output->identity, &stdio->descriptors[1].identity)) {
-            TcImplError cleanup = discard_output(output);
-            return cleanup != TC_IMPL_OK ? cleanup : TC_IMPL_USAGE;
-        }
+        output->identity = path_stat;
         stdout_alias = 1;
     }
     if (!stdout_alias) {

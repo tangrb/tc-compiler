@@ -259,25 +259,28 @@ static int stat_changed(const struct stat *before, const struct stat *after,
 
 static char *fd_path(int fd, struct stat *expected) {
     char path[PATH_MAX];
+    struct stat actual;
+    if (expected == NULL || fstat(fd, &actual) != 0) {
+        return NULL;
+    }
 #ifdef F_GETPATH
     if (fcntl(fd, F_GETPATH, path) == 0 && path[0] == '/' &&
-        stat(path, expected) == 0) {
+        stat(path, expected) == 0 && same_identity(expected, &actual)) {
         return strdup(path);
     }
-#else
-    (void)expected;
 #endif
 #if defined(__linux__)
     {
         char link[64];
         ssize_t length;
+        struct stat st;
         (void)snprintf(link, sizeof(link), "/proc/self/fd/%d", fd);
         length = readlink(link, path, sizeof(path) - 1u);
         if (length >= 0) {
-            struct stat st;
             path[length] = '\0';
             if (path[0] == '/' && stat(path, &st) == 0 &&
-                same_identity(&st, expected)) {
+                same_identity(&st, &actual)) {
+                *expected = actual;
                 return strdup(path);
             }
         }
