@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-riscv gdb
+          sudo apt-get install -y -qq clang lld llvm qemu-system-arm qemu-system-riscv gdb-multiarch
 
       - name: Verify required tools
         run: |

@@ -56,8 +56,11 @@ def main() -> int:
                   f"debug ELF generation failed: {generated.stderr!r}")
             commands = root / "smoke.gdb"
             arm_mode = "set arm force-mode thumb\n" if architecture == "arm" else ""
-            step_command = ("maintenance packet s\n"
-                            "maintenance flush register-cache\n") if architecture == "arm" else "stepi\n"
+            # GDB 17 models RISC-V stepi as a 2-byte step; IR slots are 4 bytes.
+            step_command = (
+                ("maintenance packet s\n"
+                 "maintenance flush register-cache\n")
+                if architecture in ("arm", "riscv:rv32") else "stepi\n")
             commands.write_text(
                 "set pagination off\nset confirm off\n"
                 f"file {elf}\n"
