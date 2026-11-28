@@ -184,9 +184,12 @@ def check_artifacts(failures: list[str]) -> None:
             "#program\nvar x: int64 = mul int64, 3037000499, 3037000499\n"
             "_ = writeln int64, x\n", encoding="utf-8")
         elf = directory / "out.elf"
+        aot = Path(tool("tc-aot", "TC_AOT")).resolve()
+        runtime = aot.parents[1] / "riscv32-runtime" / "libtc_riscv32_runtime.a"
         proc = subprocess.run(
-            [tool("tc-aot", "TC_AOT"), "--profile=riscv32-baremetal",
+            [str(aot), "--profile=riscv32-baremetal",
              "--emit=elf", f"--output={elf}", f"--include={directory}",
+             f"--runtime={runtime}",
              f"--ld={tool('ld.lld', 'TC_AOT_LINKER')}",
              str(directory / "root.tc")],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)

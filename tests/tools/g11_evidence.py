@@ -170,9 +170,8 @@ def verify_attestation(path: Path, repo: str, workflow: str,
         return
     expected_digest = sha256_file(path)
     command = [gh, "attestation", "verify", str(path), "--repo", repo,
-               "--signer-workflow", workflow, "--source-digest", source_digest,
-               "--source-ref", SIGNER_REF,
-               "--cert-identity", signer_identity(repo),
+               "--source-digest", source_digest, "--source-ref", SIGNER_REF,
+               "--cert-identity", f"https://github.com/{workflow}@{SIGNER_REF}",
                "--deny-self-hosted-runners", "--format", "json"]
     try:
         proc = subprocess.run(command, stdout=subprocess.PIPE,
@@ -657,8 +656,7 @@ def selftest() -> int:
             path = Path(command[3])
             if "--repo" not in command or \
                     command[command.index("--repo") + 1] != "owner/repo" or \
-                    "--signer-workflow" not in command or \
-                    command[command.index("--signer-workflow") + 1] != workflow or \
+                    "--signer-workflow" in command or \
                     "--source-digest" not in command or \
                     command[command.index("--source-digest") + 1] != "a" * 40 or \
                     "--source-ref" not in command or \
