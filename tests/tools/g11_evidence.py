@@ -469,6 +469,7 @@ def collect_evidence(build_dir: Path, output_dir: Path,
                 suite_output.append(output)
                 if proc is None or proc.returncode != 0:
                     failures.append(f"{spec['name']}/{case}: command failed")
+                    print(f"{spec['name']}/{case}: command output:\n{output}")
                 if "SKIP:" in output:
                     failures.append(f"{spec['name']}/{case}: SKIP is not PASS")
                 count = evidence_result_count(output, f"{spec['name']}/{case}")
