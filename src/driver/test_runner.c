@@ -2919,6 +2919,7 @@ static int execute_test(TcTestRunner *runner, TcTestCase *test,
     uint64_t started = 0u;
     uint64_t deadline = UINT64_MAX;
     const char *reason = NULL;
+    char worker_detail[sizeof(runner->detail)];
     char *timeout_reason = NULL;
     int compile_error = 0;
     int test_failed = 0;
@@ -2933,6 +2934,7 @@ static int execute_test(TcTestRunner *runner, TcTestCase *test,
     capture.expected_fd = -1;
     capture.actual_fd = -1;
     memset(&result, 0, sizeof(result));
+    worker_detail[0] = '\0';
     expected_trap[0] = '\0';
     if (!reopen_test(runner, test, &test_dir_fd, &main_fd, &parent_fd) ||
         !load_sidecars(runner, test, test_dir_fd, snapshots, present,
@@ -3147,15 +3149,44 @@ static int execute_test(TcTestRunner *runner, TcTestCase *test,
     if (timed_out) {
         reason = "timeout";
     } else {
-        if (!read_worker_result(result_pipe[0], &result) ||
-            !valid_worker_result(&result, &runner->profile)) {
+        if (!read_worker_result(result_pipe[0], &result)) {
+            (void)snprintf(worker_detail, sizeof(worker_detail),
+                           "test worker result is incomplete or malformed "
+                           "(wait status %#x)",
+                           (unsigned int)worker_status);
+            worker_internal = 1;
+        } else if (!valid_worker_result(&result, &runner->profile)) {
+            (void)snprintf(worker_detail, sizeof(worker_detail),
+                           "test worker result is invalid (status %u, impl %u, "
+                           "wait status %#x)",
+                           (unsigned int)result.status, (unsigned int)result.impl,
+                           (unsigned int)worker_status);
             worker_internal = 1;
         } else {
             protocol_ok = 1;
             if (!WIFEXITED(worker_status) || WEXITSTATUS(worker_status) != 0) {
                 worker_internal = 1;
+                if (WIFSIGNALED(worker_status)) {
+                    (void)snprintf(worker_detail, sizeof(worker_detail),
+                                   "test worker terminated by signal %d "
+                                   "(wait status %#x)",
+                                   WTERMSIG(worker_status),
+                                   (unsigned int)worker_status);
+                } else if (WIFEXITED(worker_status)) {
+                    (void)snprintf(worker_detail, sizeof(worker_detail),
+                                   "test worker exited with status %d "
+                                   "(wait status %#x)",
+                                   WEXITSTATUS(worker_status),
+                                   (unsigned int)worker_status);
+                } else {
+                    (void)snprintf(worker_detail, sizeof(worker_detail),
+                                   "test worker has invalid wait status %#x",
+                                   (unsigned int)worker_status);
+                }
             } else if (result.status == 3u) {
                 worker_internal = 1;
+                (void)snprintf(worker_detail, sizeof(worker_detail),
+                               "test worker rejected a non-program root");
             } else if (result.status == 2u) {
                 if (result.impl == TC_IMPL_OOM || result.impl == TC_IMPL_IO ||
                     result.impl == TC_IMPL_UNAVAILABLE) {
@@ -3164,6 +3195,9 @@ static int execute_test(TcTestRunner *runner, TcTestCase *test,
                                 "test worker environment failure");
                 } else {
                     worker_internal = 1;
+                    (void)snprintf(worker_detail, sizeof(worker_detail),
+                                   "test worker failed internally (impl %u)",
+                                   (unsigned int)result.impl);
                 }
             }
         }
@@ -3177,7 +3211,9 @@ static int execute_test(TcTestRunner *runner, TcTestCase *test,
         }
     }
     if (worker_internal) {
-        runner_fail(runner, TC_IMPL_INTERNAL, "test worker failed internally");
+        runner_fail(runner, TC_IMPL_INTERNAL,
+                    worker_detail[0] != '\0' ? worker_detail
+                                             : "test worker failed internally");
         goto cleanup;
     }
     if (worker_io) {
