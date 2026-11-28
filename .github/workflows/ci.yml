@@ -107,6 +107,7 @@ jobs:
               apt-get install -y -qq ca-certificates clang cmake git lld llvm python3 qemu-system-arm qemu-system-riscv gdb-multiarch
               cmake -S . -B build -DCMAKE_C_COMPILER=clang
               cmake --build build -j "$(nproc)"
+              ctest --test-dir build --output-on-failure -R "^vm.gdb.e2e$"
               python3 tests/tools/g11_evidence.py \
                 --collect build/gdb-e2e \
                 --build-dir build \

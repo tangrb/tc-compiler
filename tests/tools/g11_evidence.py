@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CASE_ID = "TC-G11-EVIDENCE-0001"
 SCHEMA_VERSION = 1
 SIGNER_WORKFLOW = ".github/workflows/ci.yml"
+SIGNER_REF = "refs/heads/tc-0.0.47"
 REQUIRED_PROFILES = {
     "aarch64-linux-user",
     "aarch64-baremetal",
@@ -56,6 +57,10 @@ def signer_workflow(repo: str) -> str:
     if REPO_RE.fullmatch(repo) is None:
         raise ValueError("repository must be in owner/repo format")
     return f"{repo}/{SIGNER_WORKFLOW}"
+
+
+def signer_identity(repo: str) -> str:
+    return f"https://github.com/{signer_workflow(repo)}@{SIGNER_REF}"
 
 
 def required_suite_profiles(name: str) -> list[str]:
@@ -166,7 +171,9 @@ def verify_attestation(path: Path, repo: str, workflow: str,
     expected_digest = sha256_file(path)
     command = [gh, "attestation", "verify", str(path), "--repo", repo,
                "--signer-workflow", workflow, "--source-digest", source_digest,
-               "--format", "json"]
+               "--source-ref", SIGNER_REF,
+               "--cert-identity", signer_identity(repo),
+               "--deny-self-hosted-runners", "--format", "json"]
     try:
         proc = subprocess.run(command, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, timeout=120)
@@ -652,7 +659,13 @@ def selftest() -> int:
                     "--signer-workflow" not in command or \
                     command[command.index("--signer-workflow") + 1] != workflow or \
                     "--source-digest" not in command or \
-                    command[command.index("--source-digest") + 1] != "a" * 40:
+                    command[command.index("--source-digest") + 1] != "a" * 40 or \
+                    "--source-ref" not in command or \
+                    command[command.index("--source-ref") + 1] != SIGNER_REF or \
+                    "--cert-identity" not in command or \
+                    command[command.index("--cert-identity") + 1] != \
+                        signer_identity("owner/repo") or \
+                    "--deny-self-hosted-runners" not in command:
                 return subprocess.CompletedProcess(
                     command, 1, stdout=b"", stderr=b"attestation policy mismatch")
             payload = [{

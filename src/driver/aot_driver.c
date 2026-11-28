@@ -651,6 +651,15 @@ static TcImplError resolve_output_path(const char *path, char **out) {
     if (impl != TC_IMPL_OK) {
         return impl;
     }
+    {
+        struct stat target_stat;
+        /* Descriptor aliases are not ordinary symlink chains. */
+        if (stat(absolute, &target_stat) == 0 &&
+            !S_ISREG(target_stat.st_mode)) {
+            *out = absolute;
+            return TC_IMPL_OK;
+        }
+    }
     for (;;) {
         struct stat st;
         ssize_t length;
@@ -764,11 +773,14 @@ static TcImplError preflight_one_output(const TcAotStdio *stdio,
                                         TcAotOutput *output, int create_output,
                                         int allow_stdout) {
     struct stat path_stat;
+    struct stat opened;
     int exists;
     int stdout_alias = 0;
     TcImplError impl;
-    memset(output, 0, sizeof(*output));
+    /* Prescan owns output->path. */
     output->fd = -1;
+    output->created = 0;
+    memset(&output->identity, 0, sizeof(output->identity));
     if (analysis_status != TC_ANALYSIS_OK && stdio->descriptors[2].open) {
         impl = check_potential_inputs(&stdio->descriptors[2].identity, NULL,
                                       analysis, source, include_roots,
@@ -805,16 +817,29 @@ static TcImplError preflight_one_output(const TcAotStdio *stdio,
         }
     } else if (!S_ISREG(path_stat.st_mode)) {
         if (S_ISDIR(path_stat.st_mode) || S_ISSOCK(path_stat.st_mode) ||
-            !allow_stdout || !stdio->descriptors[1].open ||
-            !same_identity(&path_stat, &stdio->descriptors[1].identity)) {
+            !allow_stdout || !stdio->descriptors[1].open) {
             return TC_IMPL_USAGE;
         }
-        output->fd = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC,
-                           STDERR_FILENO + 1);
-        if (output->fd < 0) {
-            return TC_IMPL_IO;
+        if (same_identity(&path_stat, &stdio->descriptors[1].identity)) {
+            output->fd = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC,
+                               STDERR_FILENO + 1);
+            if (output->fd < 0) {
+                return TC_IMPL_IO;
+            }
+        } else if (open_output_fd(output->path,
+                                  O_WRONLY | O_NONBLOCK | O_CLOEXEC, 0,
+                                  output) < 0) {
+            return errno == ENXIO ? TC_IMPL_USAGE : open_error();
         }
-        output->identity = path_stat;
+        if (fstat(output->fd, &opened) != 0) {
+            TcImplError cleanup = discard_output(output);
+            return cleanup != TC_IMPL_OK ? cleanup : TC_IMPL_IO;
+        }
+        if (!same_identity(&opened, &stdio->descriptors[1].identity)) {
+            TcImplError cleanup = discard_output(output);
+            return cleanup != TC_IMPL_OK ? cleanup : TC_IMPL_USAGE;
+        }
+        output->identity = opened;
         stdout_alias = 1;
     }
     if (!stdout_alias) {
@@ -914,19 +939,18 @@ TcImplError tc_aot_driver_guard(const TcAotStdio *stdio,
         return TC_IMPL_OK;
     }
     {
-        TcAotOutput output;
-        TcImplError impl = check_stdio(stdio, analysis, extra_inputs,
-                                       nextra_inputs, 0);
+        TcAotOutput output = {0};
+        TcImplError impl;
+        TcImplError cleanup;
+        output.fd = -1;
+        impl = check_stdio(stdio, analysis, extra_inputs, nextra_inputs, 0);
         if (impl == TC_IMPL_OK) {
             impl = preflight_one_output(
                 stdio, analysis, analysis_status, options->output, extra_inputs,
                 nextra_inputs, source, include_roots, ninclude_roots, &output,
                 create_output, 1);
-        } else {
-            memset(&output, 0, sizeof(output));
-            output.fd = -1;
         }
-        TcImplError cleanup = discard_output(&output);
+        cleanup = discard_output(&output);
         return cleanup != TC_IMPL_OK ? cleanup : impl;
     }
 }
