@@ -44,17 +44,10 @@ jobs:
       - name: Build with sanitizers
         run: cmake --build build-asan -j "$(nproc)"
 
-      - name: Run targeted test runner with leak diagnostics
+      - name: Run full test suite with sanitizers
         env:
-          ASAN_OPTIONS: detect_leaks=1:log_path=${{ runner.temp }}/tc-lsan
-        run: |
-          set +e
-          ctest --test-dir build-asan -R '^project\.test_runner$' --output-on-failure
-          rc=$?
-          for log in "$RUNNER_TEMP"/tc-lsan.*; do
-            if [ -f "$log" ]; then
-              echo "--- $log"
-              cat "$log"
-            fi
-          done
-          exit "$rc"
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+        # Under sanitizers the 30000-instruction far-branch case multiplies
+        # its ~5 GB peak RSS past what hosted runners can host. It still runs
+        # in local full verification.
+        run: ctest --test-dir build-asan --output-on-failure -E conformance.s10_long_branch

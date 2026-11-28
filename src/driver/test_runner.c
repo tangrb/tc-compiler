@@ -3308,6 +3308,9 @@ cleanup:
         close_snapshot(&snapshots[i]);
     }
     destroy_capture(&capture);
+    if (include_paths != NULL) {
+        free(include_paths[0]);
+    }
     free(include_paths);
     free(include_fds);
     free(timeout_reason);
