@@ -266,7 +266,7 @@ find_program(TC_LLD NAMES ld.lld HINTS /opt/homebrew/opt/llvm/bin
              /usr/local/opt/llvm/bin /opt/homebrew/bin)
 find_program(TC_LLVM_DWARFDUMP NAMES llvm-dwarfdump
              HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
-find_program(TC_GDB NAMES gdb gdb-multiarch)
+find_program(TC_GDB NAMES gdb-multiarch gdb)
 option(TC_ENABLE_AOT_TESTS "Register S7 AArch64/qemu conformance tests" ON)
 if(TC_ENABLE_AOT_TESTS AND
    (NOT TC_QEMU_SYSTEM_AARCH64 OR NOT TC_QEMU_SYSTEM_ARM OR
