@@ -89,9 +89,12 @@ def run(tool: str, root: Path, args: list[str] | None = None,
 
 def check_clean(tool: str, root: Path, result: subprocess.CompletedProcess,
                 expected_stdout: bytes) -> None:
-    check(result.returncode == 0, f"clean run exits 0: {result.returncode}")
+    check(result.returncode == 0,
+          f"clean run exits 0: {result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
     check(result.stdout == expected_stdout,
-          f"clean report bytes: {result.stdout!r} != {expected_stdout!r}")
+          f"clean report bytes: {result.stdout!r} != {expected_stdout!r}; "
+          f"stderr={result.stderr!r}")
     check(result.stderr == b"", f"clean run has no stderr: {result.stderr!r}")
 
 
@@ -130,7 +133,8 @@ def normal_and_filters(tool: str, base: Path) -> None:
 
     result = run(tool, root, ["--", "zeta"])
     check(result.returncode == 0 and b"tests/zeta" in result.stdout,
-          "double dash and interleaved timeout parse")
+          f"double dash and interleaved timeout parse: exit={result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
 
 
 def sidecars_and_traps(tool: str, base: Path) -> None:
@@ -247,7 +251,9 @@ def discovery_and_modes(tool: str, base: Path) -> None:
     (root / "tests/a-lib/main.tc").unlink()
     test(root, "a-program")
     result = run(tool, root, ["a-program"])
-    check(result.returncode == 0, "program precheck allows worker execution")
+    check(result.returncode == 0,
+          f"program precheck allows worker execution: exit={result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
     test(root, "duplicate-mode", source="#program\n#lib\n")
     result = run(tool, root, ["duplicate-mode"])
     check(result.returncode == 1 and b"compile error" in result.stdout,
@@ -262,14 +268,17 @@ def relative_imports(tool: str, base: Path) -> None:
     (directory / "stdout.bin").write_bytes(b"3\n")
     result = run(tool, root, ["nested"])
     check(result.returncode == 0 and result.stdout.endswith(b"1 passed, 0 failed\n"),
-          f"relative import anchors importer fd: {result.stderr!r}")
+          f"relative import anchors importer fd: exit={result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
 
     directory = test(root, "include", source=(
         "#program\nimport shared\n_ = writeln int32, shared.K\n"),
         stdout=b"4\n")
     write(root / "libs/shared.tc", "#lib\npublic const K: int32 = 4\n")
     result = run(tool, root, ["include"])
-    check(result.returncode == 0, f"manifest include fd works: {result.stderr!r}")
+    check(result.returncode == 0,
+          f"manifest include fd works: exit={result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
 
 
 def hardened_boundaries(tool: str, base: Path) -> None:
@@ -299,7 +308,8 @@ def hardened_boundaries(tool: str, base: Path) -> None:
     (directory / "main.tc").symlink_to("referent/main.tc")
     result = run(tool, root)
     check(result.returncode == 0,
-          f"main symlink uses referent parent for imports: {result.stderr!r}")
+          f"main symlink uses referent parent for imports: exit={result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
 
     directory = test(root, "main-fallback", stdout=b"7\n")
     write(directory / "referent/main.tc", (
@@ -309,7 +319,9 @@ def hardened_boundaries(tool: str, base: Path) -> None:
     (directory / "main.tc").symlink_to("referent/main.tc")
     result = run(tool, root, ["main-fallback"])
     check(result.returncode == 0,
-          f"main symlink falls back to canonical test include root: {result.stderr!r}")
+          f"main symlink falls back to canonical test include root: "
+          f"exit={result.returncode}; stdout={result.stdout!r}; "
+          f"stderr={result.stderr!r}")
 
     directory = test(root, "import-link", source=(
         "#program\nimport helper\n_ = writeln int32, helper.K\n"),
@@ -321,7 +333,8 @@ def hardened_boundaries(tool: str, base: Path) -> None:
     (directory / "helper.tc").symlink_to("modules/helper.tc")
     result = run(tool, root, ["import-link"])
     check(result.returncode == 0,
-          f"import symlink uses referent parent: {result.stderr!r}")
+          f"import symlink uses referent parent: exit={result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
     nested = directory / "modules/nested.tc"
     before = nested.read_bytes()
     with nested.open("rb") as error_output:
@@ -440,7 +453,9 @@ _ = br_if more, loop
     test(root, "large", source=large_source,
         stdout=b"0" * 20000)
     result = run(tool, root, ["large"], timeout=180)
-    check(result.returncode == 0, f"large streaming stdout passes: {result.stderr!r}")
+    check(result.returncode == 0,
+          f"large streaming stdout passes: exit={result.returncode}; "
+          f"stdout={result.stdout!r}; stderr={result.stderr!r}")
     write(root / "tests/large/stdout.bin", b"0" * 19999 + b"1" + b"0")
     result = run(tool, root, ["large"], timeout=180)
     check(result.returncode == 1 and b"stdout mismatch" in result.stdout,
@@ -542,7 +557,8 @@ def report_write_failure(tool: str, base: Path) -> None:
     _, error_output = process.communicate(timeout=10)
     check(received == header and process.returncode == 70 and
           b"cannot write test report" in error_output,
-          "report write failure exits 70 after timeout worker cleanup")
+          f"report write failure exits 70 after timeout worker cleanup: "
+          f"exit={process.returncode}; received={received!r}; stderr={error_output!r}")
 
 
 def invalid_utf8_and_cli(tool: str, base: Path) -> None:
