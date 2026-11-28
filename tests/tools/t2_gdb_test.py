@@ -110,9 +110,9 @@ def main() -> int:
             commands.write_text(
                 "set pagination off\n"
                 "set confirm off\n"
+                "file program.elf\n"
                 f"set architecture {architecture}\n"
                 f"{arm_mode}"
-                "file program.elf\n"
                 f"target remote 127.0.0.1:{port}\n"
                 "info line main.tc:3\n"
                 "info line main.tc:4\n"

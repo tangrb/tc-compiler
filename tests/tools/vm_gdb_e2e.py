@@ -60,9 +60,9 @@ def main() -> int:
                             "maintenance flush register-cache\n") if architecture == "arm" else "stepi\n"
             commands.write_text(
                 "set pagination off\nset confirm off\n"
+                f"file {elf}\n"
                 f"set architecture {architecture}\n"
                 f"{arm_mode}"
-                f"file {elf}\n"
                 f"target remote 127.0.0.1:{stub.port}\n"
                 # Unmapped synthetic addresses are read-only in GDB; the stub implements Z0.
                 f"mem {base:#x} {base + 4 * (len(entries) + 1):#x} rw\n"
