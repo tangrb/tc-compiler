@@ -190,6 +190,7 @@ def check_artifacts(failures: list[str]) -> None:
             [str(aot), "--profile=riscv32-baremetal",
              "--emit=elf", f"--output={elf}", f"--include={directory}",
              f"--runtime={runtime}",
+             f"--linker-script={ROOT / 'src/backend/riscv32/link.ld'}",
              f"--ld={tool('ld.lld', 'TC_AOT_LINKER')}",
              str(directory / "root.tc")],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
