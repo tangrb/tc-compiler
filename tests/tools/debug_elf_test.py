@@ -469,7 +469,7 @@ def gdb_check(vm: str, gdb: str, cwd: Path) -> None:
                 "-ex", "info break", "-ex", "continue",
                 "-ex", "printf \"TC_IR_PC=0x%lx\\n\", $tc_ir_pc",
             ]
-            # GDB 17 models RISC-V stepi as a 2-byte step; IR slots are 4 bytes.
+            # RISC-V stepi uses a two-byte architectural step; IR slots are 4 bytes.
             if architecture in ("arm", "riscv:rv32"):
                 commands += ["-ex", "maintenance packet s",
                              "-ex", "maintenance flush register-cache"]

@@ -56,7 +56,7 @@ def main() -> int:
                   f"debug ELF generation failed: {generated.stderr!r}")
             commands = root / "smoke.gdb"
             arm_mode = "set arm force-mode thumb\n" if architecture == "arm" else ""
-            # GDB 17 models RISC-V stepi as a 2-byte step; IR slots are 4 bytes.
+            # RISC-V stepi uses a two-byte architectural step; IR slots are 4 bytes.
             step_command = (
                 ("maintenance packet s\n"
                  "maintenance flush register-cache\n")
