@@ -76,10 +76,9 @@ AArch64, ARM32 and RISC-V32 profiles. Its evidence entry point is
 CTest labels, the unified `tests/run.py` entry point and the authenticated
 `tests/tools/tc_reduce.py` reducer. T6 fixes root-relative debug paths and
 `DW_AT_comp_dir=.` and verifies repeatable, root-independent debug artifacts.
-G11 evidence collection/validation and a manual signing job
-are wired through `tests/tools/g11_evidence.py`; local real-GDB validation passed across
-all four profiles, but a real signed artifact from fixed Linux CI remains pending, so
-P4b formal acceptance and G11 are incomplete. Compiler and
+G11 signed-evidence collection/validation, fixed Linux CI real-gdb evidence and
+release-audit verification are complete through `tests/tools/g11_evidence.py`.
+P0–P5, T0–T6 and P4b formal acceptance are complete, and G0–G11 PASS. Compiler and
 observation output guards protect
 stdio, project inputs, explicit outputs and reservations before publishing diagnostics
 or artifacts.

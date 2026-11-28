@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch targets delivery of the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0–P4a, local P5 acceptance and T0–T6 are complete. P4b implementation and local real-gdb validation across all four profiles are complete. Fixed Linux CI signed evidence remains pending, so P4b formal acceptance and G11 are incomplete.
+Thanks for your interest in TC-Compiler. This branch is the **`tc-0.0.47` toolchain branch**: the 0.0.46 clean-sheet baseline (contracts, LEX/SYN, IMPORT, names/types/conversions/layout, static instruction checks, const_expr forms, CFG/DI, call ordering/safety, the annotation matrix, CT evaluation, IR finalization/printing, the runtime semantic core, the reference VM, the full W=64 AArch64, W=32 ARM32 and W=32 RISC-V backends/toolchains, three freestanding/bare-metal platform instances, all four device policies, checked build, the full differential/ABI/consistency/artifact suites, generated ABI fuzz, implementation-limit/scale/far-branch regressions, the long-term regression corpus and the release audit) is implemented and the optional optimization pipeline is not enabled. This branch delivers the development/debug toolchain and project model without changing language semantics (see [TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md) and [TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)). Both designs meet the freeze criteria; P0–P5, T0–T6, P4b formal acceptance and G11 are complete, and G0–G11 PASS. Fixed Linux CI real-gdb signed evidence across all four profiles passed the release audit.
 
 Chinese: [CONTRIBUTING.md](CONTRIBUTING.md)
 
@@ -63,9 +63,9 @@ restricted writes. P4b adds `tc-vm --gdb-elf-out=<path>`, independent ELF/DWARF
 validation for all four profiles, and real-gdb debug ELF, source breakpoints,
 64-bit `tc_ir_pc` reads, IR single-step and program-semantic regressions across all
 four profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architectural PCs remain
-`code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted. ARM clients need
-`set arm force-mode thumb`; the GDB 18.1 ARM `stepi` limitation is covered by
-verifying the same RSP step with maintenance packet `s` and a register-cache flush.
+`code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted.
+ARM clients need `set arm force-mode thumb`; synthetic ARM/RISC-V IR steps verify
+the same RSP step with maintenance packet `s` and a register-cache flush.
 T4 adds diagnostic JSONL; T5 adds presets, fixed labels, unified `tests/run.py` and
 `tc-reduce`; T6 verifies repeatable and root-independent three-architecture debug artifacts.
 The P1/P2/P3/P4a/P4b/T1/T2/T3/T4/T5/T6 test entry points are
@@ -75,9 +75,8 @@ The P1/P2/P3/P4a/P4b/T1/T2/T3/T4/T5/T6 test entry points are
 `vm.gdb.protocol`, `vm.gdb.semantics`, `vm.gdb.e2e`, `t4.diag`,
 `toolchain.diag_json`, `toolchain.presets`, `toolchain.reduce` and `release.t6_repro`, runnable with
 `ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)'
---output-on-failure`. There are 99 registered tests; G11 evidence collection/validation
-and a manual signing job are wired. A real signed artifact from fixed Linux CI
-remains pending, so P4b formal acceptance and G11 are incomplete.
+--output-on-failure`. There are 99 registered tests and 51 closing checks.
+P0–P5, T0–T6, P4b formal acceptance and G11 are complete, and G0–G11 PASS.
 The S7/S8/S9/S10 differential/toolchain tests need `clang`, `llvm-ar`, `ld.lld`,
 `qemu-system-aarch64`, `qemu-system-arm` and `qemu-system-riscv32`; P4a also needs
 `llvm-dwarfdump`, and T2/T3 need `gdb`.

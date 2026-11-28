@@ -1,8 +1,8 @@
 # Gate status (0.0.46 / 0.0.47)
 
 This directory keeps only the current gate conclusion and reproducible evidence
-entry points. Round-by-round audits, defect-fix logs and historical commit or
-environment snapshots are not kept on the branch; use git history if needed.
+entry points. Round-by-round audits, fix logs, historical commits and environment
+snapshots stay in git history rather than branch documentation.
 
 | Gate | Stage | Result | Record |
 | ---- | ----- | ------ | ------ |
@@ -17,127 +17,28 @@ environment snapshots are not kept on the branch; use git history if needed.
 | G8 | S8 full semantics, runtime and full differential | **PASS** | [G8](TC-G8门禁报告-0.0.46.md) |
 | G9 | S9 freestanding/bare metal and 32-bit backend | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 | G10 | S10 multi-target expansion and long-term regression | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
-| G11 | 0.0.47 toolchain and project model | **Incomplete** | Current status on this page |
+| G11 | 0.0.47 toolchain and project model | **PASS** | [G11](TC-G11门禁报告-0.0.47.md) |
 
-**Current status**: G10 passed and the 0.0.46 stage exit is complete. P0–P4a,
-local P5 acceptance and T0–T6 of `tc-0.0.47` are complete: split versions, three private entry
-points, the shared implementation-error exit mapping, the `tc` CLI contract,
-release audit, full `tc --init-project` templates with atomic writes/rollback/
-identity checks, `tc.project` v1 parsing with nearest-ancestor root discovery,
-and compiler consumption of manifest/include/profile data. Canonical and
-project-root-relative display paths are separate; diagnostics, IR metadata, VM
-traps and AOT source strings use display paths. Module identity uses bound parent
-directories and actual entry names, and source reads are nonblocking and
-descriptor-bound. `tc --test` implements one-level discovery/filtering, fd-anchored
-beneath resolution, strict sidecars, private read-only snapshots, fork workers,
-timeouts, stream capture, structured results, reports and exit mapping; evidence
-entry points are `tests/project/test_runner_test.py` and `project.test_runner`.
-P4a adds the shared deterministic line map, private AOT `.loc`/source comments
-and a minimal DWARF v4 CU with clang-generated `.debug_line`, plus stdio/project-
-input/output-reservation guards before diagnostics or artifacts; evidence entry
-points are `linemap.unit`, `tests/conformance/tools/p4a_debug_cases.py` and
-`p4a.debug`. T1 adds VM/AOT `--dump-ir`, VM `--trace=ir,call,mem,io,trap` with
-text/jsonl, limits and output selection, VM/AOT `--stats`, structured trap context,
-explicit output identity/reservation guards and deterministic observation output;
-its evidence entry point is `t1.observe`. T2 completes VM/AOT
-`--dump-linemap[=<path>]` and public `tc-aot --debug`: every IR instruction uses
-one final-IR line-map entry for JSON v3, synthetic VM addresses, `.loc`/source
-comments and the DWARF v4 CU. Real gdb through the qemu gdbstub verifies
-`info line`, source breakpoints and single-step; evidence entry points are
-`t2.debug` and `t2.gdb`. T3 completes the VM GDB stub: `tc-vm --gdb[=<port>]`
-defaults to port 0 and binds loopback only, with mandatory
-`--gdb-stdout-journal=<dir>`. It supports synthetic IR addresses,
-`target.xml`/memory map, breakpoints/step/continue, monitor, extended restart,
-an atomic stdout journal and resumable stdin. The default is read-only;
-`--gdb-allow-write` enables only restricted writes. Evidence entry points are
-`gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol` (242 checks),
-`vm.gdb.semantics` and `vm.gdb.e2e`; none of these debugger tests are fast.
-P4b completes the private VM debug ELF writer and local real-gdb validation across
-all four profiles: `tc-vm --gdb-elf-out=<path>` reuses the shared line map and
-synthetic addresses, and `toolchain.debug_elf` verifies debug ELF, source breakpoints,
-64-bit `tc_ir_pc` reads, IR single-step and program-semantic regressions. Synthetic
-`tc_ir_pc` is a 64-bit `uint64`, architectural PCs remain `code_ptr` (64-bit on
-AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted. ARM clients need `set arm force-mode thumb`;
-GDB 18.1 ARM `stepi` cannot be used directly because sp is not modelled, so tests
-verify the same RSP step with maintenance packet `s` and a register-cache flush.
-T4 completes diagnostic JSONL; T5 completes presets, fixed labels, the unified
-test runner and `tc-reduce`; T6 completes repeatable and root-independent
-three-architecture debug artifacts. G11 evidence collection/validation and a
-manual signing job are wired. A real signed artifact from fixed Linux CI remains
-pending, so P4b formal acceptance and G11 are incomplete.
-There are 99 registered 0.0.47 CTests and 51 closing checks.
-The front end, CT/IR, runtime semantic
-core, reference VM, the full W=64 AArch64 backend, the W=32 ARM32 backend, the
-W=32 RISC-V `riscv32-baremetal` backend, the freestanding target runtime core
-with the `aarch64-baremetal`/`arm32-baremetal`/`riscv32-baremetal` platform
-instances, all four device policies, checked build, bidirectional
-C-caller/TC-caller AAPCS64/AAPCS32/RISC-V ILP32 interoperability, the full
-differential and generated ABI adversarial suites, implementation-limit/scale/
-far-branch regressions, reset-entry BSS clearing, 32/64 profile isolation, the
-long-term regression corpus and the release audit are implemented. Coverage is
-636/636; every design §12 item has a suite mapping.
+## Current conclusion
 
-Reproduce:
+- G0–G11 PASS. G10 completes the 0.0.46 stage exit and G11 completes the 0.0.47 stage exit.
+- P0–P5, T0–T6 and P4b formal acceptance of 0.0.47 are complete; 99 CTests and 51 closing checks are registered.
+- Fixed Linux CI real-gdb signed evidence across all four profiles passed the release audit.
+  Local, SKIP or incomplete evidence cannot close G11.
+- Current capabilities, implementation boundaries and full reproduction commands are in the
+  [README](../../README.md), [AGENTS](../../AGENTS.md) and [tests/README](../../tests/README.md).
 
-```sh
-cmake -S . -B .tmp/build
-cmake --build .tmp/build
-ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)' --output-on-failure
-python3 tests/conformance/static/s1_cases.py --check
-python3 tests/conformance/static/s2s3_cases.py --check
-python3 tests/conformance/static/s4_cases.py --check
-python3 tests/conformance/static/s5_cases.py --check
-python3 tests/conformance/runtime/s6_cases.py --check
-python3 tests/conformance/static/s6_static_cases.py --check
-python3 tests/conformance/diff/s7_cases.py --check
-python3 tests/conformance/diff/s7_fuzz.py --check
-python3 tests/conformance/abi/s7_abi_cases.py --check
-python3 tests/conformance/tools/s7_toolchain_cases.py --check
-python3 tests/conformance/tools/s7_static_parity.py --check
-python3 tests/determinism/s7_determinism.py --check
-python3 tests/conformance/diff/s8_cases.py --check
-python3 tests/conformance/abi/s8_abi_cases.py --check
-python3 tests/conformance/abi/s8_interop_cases.py --check
-python3 tests/conformance/diff/s8_abi_fuzz.py --check
-python3 tests/conformance/diff/s8_layout_fuzz.py --check
-python3 tests/conformance/diff/s8_mem_fuzz.py --check
-python3 tests/conformance/diff/s8_fp_fuzz.py --check
-python3 tests/conformance/checked/s8_checked_cases.py --check
-python3 tests/conformance/consistency/s8_consistency_cases.py --check
-python3 tests/conformance/tools/s8_artifact_cases.py --check
-python3 tests/conformance/tools/s8_static_fuzz.py --check
-python3 tests/determinism/s8_determinism.py --check
-python3 tests/conformance/platform/s9_baremetal_cases.py --check
-python3 tests/conformance/platform/s9_arm32_cases.py --check
-python3 tests/conformance/abi/s9_arm32_interop.py --check
-python3 tests/conformance/abi/reverse_interop_cases.py --check
-python3 tests/tools/abi_mutation_audit.py --check
-python3 tests/tools/s9_capacity_report.py --check
-python3 tests/tools/s9_softfloat_audit.py --check
-python3 tests/conformance/tools/s9_static_parity.py --check
-python3 tests/conformance/platform/s9_profiles.py --check
-python3 tests/determinism/s9_determinism.py --check
-python3 tests/conformance/platform/s10_riscv32_cases.py --check
-python3 tests/conformance/platform/s10_limits_cases.py --check
-python3 tests/conformance/abi/s10_riscv32_interop.py --check
-python3 tests/conformance/abi/s10_reverse_interop.py --check
-python3 tests/conformance/abi/s10_abi_fuzz.py --check --seeds 8
-python3 tests/conformance/tools/s10_static_parity.py --check
-python3 tests/conformance/tools/s8_static_fuzz.py --check --profile=riscv32-baremetal
-python3 tests/conformance/tools/s10_frontend_scale.py --check
-python3 tests/conformance/checked/s10_checked_cases.py --check
-python3 tests/conformance/platform/s10_long_branch.py --check
-python3 tests/conformance/longterm/s10_longterm.py --check
-python3 tests/determinism/s10_determinism.py --check
-python3 tests/tools/s10_release_audit.py --check
-python3 tests/golden/validate.py
-python3 tests/golden/run.py .tmp/build/src/driver/tc-vm
-python3 tests/traceability/coverage.py --check
-python3 tests/tools/docs_cleanup_check.py
-```
+## 0.0.47 evidence entry points
+
+| Scope | Current evidence |
+| ---- | --------------- |
+| P0–P3 versions, CLI, initialization, manifest and paths | `cli.contract`, `project.manifest`, `project.init`, `project.init_fault`, `project.paths_unit`, `project.paths`, `project.paths_aot`, `project.test_runner` |
+| P4a / T2 line maps and source mapping | `linemap.unit`, `p4a.debug`, `t2.debug`, `t2.gdb` |
+| T1 observation | `t1.observe` |
+| T3 GDB stub | `gdb_journal.unit`, `gdb_rsp.unit`, `vm.gdb.protocol`, `vm.gdb.semantics`, `vm.gdb.e2e` |
+| P4b / G11 debug ELF and signed evidence | `toolchain.debug_elf`, `toolchain.g11_evidence`, `release.s10_audit` |
+| T4–T6 diagnostics, test infrastructure and reproducible release | `t4.diag`, `toolchain.diag_json`, `toolchain.presets`, `toolchain.reduce`, `release.t6_repro` |
 
 The normative sources remain the [standard](../TC语言及编译器标准-0.0.46.md),
 [design](../TC原生编译器设计说明书-0.0.46.md) and
-[test plan](../TC开发测试计划-0.0.46.md); gate records never add or relax a
-requirement.
+[test plan](../TC开发测试计划-0.0.46.md); gate records never add or relax a requirement.

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.47] - Unreleased
+## [0.0.47] - 2026-11-28
 
 ### Added
 
@@ -30,12 +30,13 @@
   符号/顶层/空函数边界、共享 linemap 全序、CLI 与输出身份/写失败，以及四种
   profile 的真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序
   语义回归；合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`
-  （AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。
-- **G11 证据基础设施**：新增 `toolchain.g11_evidence`、证据收集/结构校验、精确
+  （AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受；
+  ARM/RISC-V 合成 IR 单步通过 RSP `s` 与 register-cache flush 验证。
+- **G11 签名证据基础设施**：新增 `toolchain.g11_evidence`、证据收集/结构校验、精确
   suite/case/profile 矩阵、仓库限定 signer workflow、provenance 源提交与 subject
   校验、发布审计 `--require-g11-evidence`，以及要求钉住容器 digest 并匹配仓库批准
-  变量、在签名后实际验证的手动 Linux 作业；固定 Linux CI 真实签名 artifact
-  仍待完成。
+  变量、在签名后实际验证的手动 Linux 作业；固定 Linux CI 真实签名证据已通过发布
+  审计，P4b 正式验收与 G11 均完成。
 - **T1 观测能力**：VM/AOT `--dump-ir[=<path>]`；VM `--trace=ir,call,mem,io,trap`，
   支持 `text`/`jsonl`、`--trace-limit=<n>` 与 `--trace-out=<path>`；VM/AOT `--stats`
   与 `--stats-out=<path>`；结构化 trap 上下文、显式输出身份检查与预留保护，以及确定性观测输出。
@@ -80,18 +81,22 @@
 
 ### 状态
 
-- 0.0.47 CTest 注册总数 99。
-  G11 证据收集/校验与手动签名作业已接入，四种 profile 的本地真实 gdb 验证已完成；
-  固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与 G11 未完成。
-- P0–P4a、P5 本地验收与 T0–T6 已完成；P4b 本地实现与四种 profile 的真实 gdb
-  验证已完成，G11 证据基础设施已接入；固定 Linux CI 真实签名 artifact 待完成，
-  P4b 正式验收与 G11 未完成。
+- 0.0.47 CTest 注册总数 99，收尾检查 51 项；G0–G11 PASS。
+- P0–P5、T0–T6、P4b 正式验收与 G11 均已完成；固定 Linux CI 四种 profile 的
+  真实 gdb 签名证据已通过发布审计。
   `tc --init-project`、编译器路径消费与 `tc --test` 已可用；VM/AOT `--dump-linemap`
   与公开 `tc-aot --debug` 已可用，真实 qemu gdbstub/gdb 冒烟已通过；VM GDBstub
   已提供原子 stdout journal 与可恢复 stdin；VM 调试 ELF 已通过四种档案的独立
   语义解码，以及四种 profile 的真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc`
   读取、IR 单步与程序语义回归。
 - P4b 的 VM 调试 ELF 内部布局不得回写冻结规范。
+
+### Fixed
+
+- `tc --test` 的 worker 失败保留原始 wait status、信号/退出码与结果协议状态，
+  不再将缺失或畸形结果、异常终止和非程序根统一归并为泛化内部错误；环境 IO 退出映射不变。
+- `tc --test` 在每条 worker 清理路径释放 fd 派生的测试 include 根，避免泄漏检测将成功运行
+  改写为退出 1。
 
 ## [0.0.46] - 2026-11-19
 
@@ -217,6 +222,9 @@
   的 0 基字节偏移在默认、`--sem-only`、`--static-only`、`--syntax-only` 与 AOT
   诊断路径均呈现；新增 S4 注解矩阵、CLI 全路径/畸形序列/导入/管道检查及
   adapter `byte_offset` 期望，并拒绝未声明 offset、校验 note 的文件/位置/阶段。
+- 运行时/诊断修正：有限/±inf 除法不再误报下溢；十进制跨 binade 舍入不再重复倍值；
+  同形参注解错误先于后续类型错误；stdout 写入/writeln 记录立即提交，失败在对应指令报告
+  `TC_RE_IO`；非法 UTF-8 附加 0 基字节偏移说明。
 - SEM 完成解析/校验并冻结类型表；CT 与 IR 最终化在其后运行，只使用只读类型查找，
   不再 intern；SEM 的 CFG/DI 事实在 IR 最终化时重新物化为显式块边；`TcFunc.body`
   在 unit 数组增长结束后统一校正，稳定指向最终 `TcIR.units`。

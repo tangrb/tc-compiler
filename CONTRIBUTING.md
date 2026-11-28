@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支目标是在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0–P4a、P5 本地验收与 T0–T6 已完成；P4b 本地实现与四种 profile 的真实 gdb 验证已完成，固定 Linux CI 真实签名 artifact 待完成，P4b 正式验收与 G11 未完成。
+感谢关注 TC-Compiler。当前分支是 **`tc-0.0.47` 工具链分支**：0.0.46 clean-sheet 基线（契约、LEX/SYN、IMPORT、名称/类型/转换/布局、静态指令检查、const_expr 形态、CFG/DI、调用顺序/安全与注解矩阵、CT 求值、IR 最终化/打印、运行时语义核、参考 VM、W=64 AArch64、W=32 ARM32 与 W=32 RISC-V 全量后端/工具链、三个 freestanding/裸机平台实例、四设备策略、checked build、全量差分/ABI/一致性/产物套件、生成式 ABI fuzz、实现边界/规模/长跳转回归、长期回归语料与发布审计）已实现，可选优化管线尚未启用；本分支已在语言语义不变的前提下交付开发调试工具链与工程模型（[TC开发调试工具链-0.0.47.md](docs/TC开发调试工具链-0.0.47.md)、[TC工程模型-0.0.47.md](docs/TC工程模型-0.0.47.md)）。两份设计达到冻结条件；P0–P5、T0–T6、P4b 正式验收与 G11 均已完成，G0–G11 全部通过；固定 Linux CI 四种 profile 的真实 gdb 签名证据已通过发布审计。
 
 English: [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
@@ -57,9 +57,9 @@ restart、原子 stdout journal、可恢复 stdin 与可选受限写入。P4b �
 `tc-vm --gdb-elf-out=<path>` 的私有调试 ELF writer、四种档案独立语义解码与
 四种 profile 的真实 gdb 调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步及
 程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`
-（AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受；ARM 客户端需 `set arm force-mode thumb`，
-GDB 18.1 的 ARM `stepi` 限制由 maintenance packet `s` 与 flush register-cache
-的同一 RSP 单步验证覆盖。T4 已实现诊断 JSONL；T5 已实现 presets、固定标签、
+（AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受；
+ARM 客户端需 `set arm force-mode thumb`；ARM/RISC-V 合成 IR 单步由 maintenance
+packet `s` 与 flush register-cache 的同一 RSP 单步验证覆盖。T4 已实现诊断 JSONL；T5 已实现 presets、固定标签、
 统一 `tests/run.py` 与 `tc-reduce`；T6 已验证三架构调试产物重复/跨根字节一致性。
 P1/P2/P3/P4a/P4b/T1/T2/T3/T4/T5/T6 测试入口为 `project.manifest`、`project.init`、
 `project.init_fault`、`project.paths_unit`、`project.paths`、`project.paths_aot`、
@@ -69,8 +69,8 @@ P1/P2/P3/P4a/P4b/T1/T2/T3/T4/T5/T6 测试入口为 `project.manifest`、`project
 `vm.gdb.e2e`、`t4.diag`、`toolchain.diag_json`、`toolchain.presets`、
 `toolchain.reduce` 与 `release.t6_repro`，可用
 `ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)'
---output-on-failure` 运行。当前注册 99 项；G11 证据收集/校验与手动签名作业已接入，
-固定 Linux CI 真实签名 artifact 仍待完成，P4b 正式验收与 G11 未完成。
+--output-on-failure` 运行。当前注册 99 项，收尾检查 51 项；P0–P5、T0–T6、
+P4b 正式验收与 G11 均已完成，G0–G11 全部通过。
 AOT 差分/工具链测试需要 `clang`、`llvm-ar`、`ld.lld`、`qemu-system-aarch64`、
 `qemu-system-arm` 与 `qemu-system-riscv32`；P4a 另需 `llvm-dwarfdump`，T2/T3 另需 `gdb`。
 

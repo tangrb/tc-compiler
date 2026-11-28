@@ -33,8 +33,8 @@ T4 新增 `t4.diag` 与 `toolchain.diag_json`，覆盖稳定 JSONL schema、80 �
 所有临时脚本、fixture 与编译产物置于项目 `.tmp/`，版本控制测试源仍位于 `tests/`。
 T3 的 journal/RSP/协议/语义测试为 `unit`/`toolchain`/`slow`，`vm.gdb.e2e` 为
 `unit`/`toolchain`/`aot` 且不属于 fast；
-[工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
-[工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)，在实现并注册前不得作为当前套件或
+上述已注册入口依据 [工程模型 §9.1](../docs/TC工程模型-0.0.47.md)与
+[工具链 §7.1](../docs/TC开发调试工具链-0.0.47.md)验收；未注册项不得作为当前套件或
 PASS 证据。
 
 | Suite | Location | Level | Content |
@@ -130,15 +130,16 @@ S8 生成式套件默认每个 family 48 seeds（门禁预算）；手动长跑�
 共享 linemap 全序一致、空函数与顶层单元边界、CLI/输出身份/写失败，并以真实 gdb
 验证四种 profile 的调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、IR 单步与程序语义回归。
 合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为 `code_ptr`（AArch64 64 位，
-ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；GDB 18.1 的 ARM
-`stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet `s` 与 flush
-register-cache 验证同一 RSP 单步。
+ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需
+`set arm force-mode thumb`；ARM/RISC-V 合成 IR 单步通过 maintenance packet `s`
+与 flush register-cache 验证同一 RSP 单步。
 `toolchain.g11_evidence` 校验证据 schema、transcript 逐用例断言、SKIP、artifact 摘要与
 provenance 源提交；发布审计可通过 `--require-g11-evidence=<artifact-dir>` 强制校验两份签名。
 手动 CI 作业要求输入钉住的容器 digest，并为 `result.json` 与 `transcript.log` 生成 attestation。
-固定 Linux CI 真实签名 artifact 尚未完成，P4b 正式验收与 G11 仍未完成。
+固定 Linux CI 真实签名证据已通过发布审计，P4b 正式验收与 G11 均已完成。
 
-0.0.47 CTest 注册总数 99，收尾检查 51 项。
+0.0.47 CTest 注册总数 99，收尾检查 51 项；P0–P5、T0–T6、P4b 正式验收与
+G11 均已完成，G0–G11 全部通过。
 0.0.46 harness 873/873
 （608 编译、131 工具、133 运行、1 属性）；单元检查 frontend 688、sem 102、ct 370、
 ir 674、vm 514、aot 81、oom 383。S9 平台套件另有 29 个固定 ARM32 用例、

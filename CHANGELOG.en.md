@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.47] - Unreleased
+## [0.0.47] - 2026-11-28
 
 ### Added
 
@@ -39,13 +39,15 @@
   output identity/write failures, plus real-gdb debug ELF, source breakpoints, 64-bit
   `tc_ir_pc` reads, IR single-step and program-semantic regressions across all four
   profiles. Synthetic `tc_ir_pc` is a 64-bit `uint64`, architectural PCs remain
-  `code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2 is accepted.
-- **G11 evidence infrastructure**: add `toolchain.g11_evidence`, evidence collection
-  and structural validation, an exact suite/case/profile matrix, repository-qualified
-  signer workflow, provenance source-commit/subject checks, release-audit
-  `--require-g11-evidence`, and a manual Linux job requiring a pinned container digest
-  that matches an approved repository variable and verifying signatures after
-  attestation. A real signed artifact from fixed Linux CI remains pending.
+  `code_ptr` (64-bit on AArch64, 32-bit on ARM32/RISC-V32), and ARM/RISC-V Z0 kind=2
+  is accepted. Synthetic ARM/RISC-V IR steps use RSP `s` with a register-cache flush.
+- **G11 signed-evidence infrastructure**: add `toolchain.g11_evidence`, evidence
+  collection and structural validation, an exact suite/case/profile matrix,
+  repository-qualified signer workflow, provenance source-commit/subject checks,
+  release-audit `--require-g11-evidence`, and a manual Linux job requiring a pinned
+  container digest that matches an approved repository variable and verifying
+  signatures after attestation. Fixed Linux CI real-gdb signed evidence passed the
+  release audit; P4b formal acceptance and G11 are complete.
 - **T1 observation**: VM/AOT `--dump-ir[=<path>]`; VM
   `--trace=ir,call,mem,io,trap` with `text`/`jsonl`, `--trace-limit=<n>` and
   `--trace-out=<path>`; VM/AOT `--stats` with `--stats-out=<path>`; structured trap
@@ -107,14 +109,9 @@
 
 ### Status
 
-- There are 99 registered 0.0.47 CTests (48 fast). G11 evidence collection/validation
-  and a manual signing job are wired, and local real-gdb validation passed across all
-  four profiles. A real signed artifact from fixed Linux CI remains pending, so P4b
-  formal acceptance and G11 are incomplete.
-- P0–P4a, local P5 acceptance and T0–T6 are complete. P4b implementation and
-  local real-gdb validation across all four profiles are complete, and G11 evidence
-  infrastructure is wired. A real signed artifact from fixed Linux CI remains
-  pending, so P4b formal acceptance and G11 are incomplete. `tc --init-project`,
+- There are 99 registered 0.0.47 CTests (48 fast) and 51 closing checks; G0–G11 PASS.
+- P0–P5, T0–T6, P4b formal acceptance and G11 are complete. Fixed Linux CI real-gdb
+  signed evidence across all four profiles passed the release audit. `tc --init-project`,
   compiler path consumption and `tc --test` are available. VM/AOT
   `--dump-linemap` and public `tc-aot --debug` are available, and the real
   qemu-gdbstub/gdb smoke test passed. The VM GDB stub provides an atomic stdout
@@ -124,6 +121,15 @@
   profiles.
 - The P4b VM debug-ELF internal layout must not be written back to the frozen
   specification.
+
+### Fixed
+
+- `tc --test` worker failures retain the raw wait status, signal/exit code and
+  result-protocol state instead of collapsing missing or malformed results,
+  abnormal termination and non-program roots into one generic internal error;
+  environment-I/O exit mapping is unchanged.
+- `tc --test` releases the fd-derived test include root on every worker cleanup
+  path so leak detection no longer turns successful runs into exit status 1.
 
 ## [0.0.46] - 2026-11-19
 
@@ -291,22 +297,11 @@
   annotation matrix, all-path/malformed/imported/pipe CLI checks and an adapter
   offset expectation; the harness rejects undeclared offsets and validates the
   note's file/position/stage; harness is 873/873.
-- **Specification wording clarifications**: §12.2 #9 applies only when the
-  candidate primary positions are identical; fixed-shape errors
-  (`OPERAND_COUNT`/`RETURN_FORM`) precede later-column literals by column;
-  device policy constrains accesses, while pure `ptradd`/`ptrsub` only traps
-  under the reject policy; one-past `ptrsub n=0` stays one-past;
-  `CIRCULAR_IMPORT` relates to the target module header; "cycle before
-  duplicate" is per import edge; `make` fields accept only const value forms
-  (op_form/nested `make` is SYNTAX). No diagnostic code, acceptance set or
-  observable behavior changes.
 - **Runtime/diagnostic fixes**: finite/±inf division no longer reports a false
-  underflow (RT/CT); decimal literals that round across a binade boundary no
-  longer double the value; same-parameter annotation errors precede later type
-  errors by §12.2 #3; each stdout write/writeln record is committed immediately
-  and a failure reports `TC_RE_IO` at that instruction; invalid UTF-8 emits a
-  0-based byte-offset note. Added S6/S4/CLI regressions; the Debug gate is
-  71/71 `ctest` and 873/873 harness cases.
+  underflow; decimal literals that round across a binade boundary no longer
+  double the value; same-parameter annotation errors precede later type errors;
+  each stdout write/writeln record is committed immediately and failures report
+  `TC_RE_IO` at that instruction; invalid UTF-8 emits a 0-based byte-offset note.
 - SEM validates and freezes the type table; CT and IR finalization run afterwards with
   read-only type lookups only (no interning); SEM's CFG/DI facts are materialized into
   explicit block edges during IR finalization; `TcFunc.body` pointers are fixed up

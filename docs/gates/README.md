@@ -1,7 +1,7 @@
 # 门禁状态（0.0.46 / 0.0.47）
 
-本目录只保留每个已完成阶段的**当前门禁结论与可复现证据入口**。逐轮审计记录、缺陷修复过程、
-历史 commit/环境快照不进入分支；需要追溯时使用 git 历史。
+本目录只保留各阶段的当前门禁结论与可复现证据入口。逐轮审计、修复过程、历史 commit 与环境快照
+不进入分支文档；需要追溯时使用 git 历史。
 
 | 门禁 | 阶段 | 结论 | 记录 |
 | ---- | ---- | ---- | ---- |
@@ -16,111 +16,26 @@
 | G8 | S8 全量语义、运行时与全量差分 | **PASS** | [G8](TC-G8门禁报告-0.0.46.md) |
 | G9 | S9 freestanding/裸机与 32 位后端 | **PASS** | [G9](TC-G9门禁报告-0.0.46.md) |
 | G10 | S10 多目标扩展与长期回归 | **PASS** | [G10](TC-G10门禁报告-0.0.46.md) |
-| G11 | 0.0.47 工具链与工程模型 | **未完成** | 本页当前状态 |
+| G11 | 0.0.47 工具链与工程模型 | **PASS** | [G11](TC-G11门禁报告-0.0.47.md) |
 
-**当前状态**：G10 通过，0.0.46 阶段出口完成；`tc-0.0.47` 的 P0–P4a、P5 本地验收与
-T0–T6 已完成：版本拆分、三个私有入口、共享实现级退出码映射、`tc` CLI 契约、
-发布审计、`tc --init-project` 完整模板/原子写入/回滚/身份检查、`tc.project` v1
-解析与最近根发现，以及 manifest/include/profile 的编译器消费。canonical 路径与
-工程根相对显示路径已分离，诊断、IR、VM trap 与 AOT 源字符串统一使用显示路径；
-模块身份使用绑定父目录与实际目录项名，源读取采用非阻塞有界 fd。`tc --test` 已完成
-一层发现/筛选、fd 锚定 beneath 解析、严格侧车、私有只读快照、fork worker、超时、
-流捕获、结构化结果、报告与退出映射，证据入口为 `tests/project/test_runner_test.py`
-与 `project.test_runner`。P4a 已完成共享确定性行表、私有 AOT `.loc`/源注释与最小
-DWARF v4 CU（clang 生成 `.debug_line`），并在发布诊断/产物前保护 stdio、项目输入
-与输出保留身份；证据入口为 `linemap.unit`、`tests/conformance/tools/p4a_debug_cases.py`
-与 `p4a.debug`。T1 已完成 VM/AOT `--dump-ir`、VM `--trace=ir,call,mem,io,trap`
-（text/jsonl、limit/output）、VM/AOT `--stats`、结构化 trap 上下文、显式输出身份/
-预留保护与确定性观测输出，证据入口为 `t1.observe`。T2 已完成 VM/AOT
-`--dump-linemap[=<path>]` 与公开 `tc-aot --debug`：每条 IR 指令共享一个最终 IR
-行表项，输出 JSON v3、VM 合成地址、`.loc`/源注释与 DWARF v4 CU；真实 gdb 经
-qemu gdbstub 已验证 `info line`、源码断点与单步，证据入口为 `t2.debug` 与
-`t2.gdb`。T3 已完成 VM GDBstub：`tc-vm --gdb[=<port>]` 默认 0 且仅 loopback，
-强制 `--gdb-stdout-journal=<dir>`；支持合成 IR 地址、`target.xml`/内存映射、
-断点/单步/继续、monitor、extended restart、原子 stdout journal 与可恢复 stdin，
-默认只读且 `--gdb-allow-write` 仅开放受限写入。证据入口为 `gdb_journal.unit`、
-`gdb_rsp.unit`、`vm.gdb.protocol`（242 checks）、`vm.gdb.semantics` 与
-`vm.gdb.e2e`；这些真实/协议调试测试均不属于 fast。P4b 已完成私有 VM 调试 ELF writer
-与四种 profile 的本地真实 gdb 验证：`tc-vm --gdb-elf-out=<path>` 复用共享行表与
-合成地址，`toolchain.debug_elf` 已验证调试 ELF、源级断点、64 位 `tc_ir_pc` 读取、
-IR 单步与程序语义回归。合成 `tc_ir_pc` 使用 64 位 `uint64`，架构 pc 仍为
-`code_ptr`（AArch64 64 位，ARM32/RISC-V32 32 位），ARM/RISC-V 的 Z0 kind=2 已被接受。ARM 客户端需 `set arm force-mode thumb`；
-GDB 18.1 的 ARM `stepi` 因未建模 sp 不可直接使用，测试通过 maintenance packet
-`s` 与 flush register-cache 验证同一 RSP 单步。T4 已完成诊断 JSONL；T5 已完成
-presets、固定标签、统一测试入口与 `tc-reduce`；T6 已完成三架构调试产物重复/跨根
-字节一致性。G11 证据收集/校验与手动签名作业已接入；固定 Linux CI 真实签名
-artifact 尚未完成，P4b 正式验收与 G11 未完成。
-0.0.47 CTest 注册总数 99，收尾检查 51 项。
-0.0.46 已验收 harness 873/873。
-前端、CT/IR、运行时语义核、参考 VM、W=64 AArch64 全量后端、W=32 ARM32 后端、
-W=32 RISC-V `riscv32-baremetal` 后端、freestanding 目标运行时核与三个裸机平台实例、
-四设备策略、checked build、C caller/TC caller 双向 AAPCS64/AAPCS32/RISC-V ILP32
-互操作、全量差分/生成式 ABI 对抗测试、实现边界/规模/长跳转回归、复位入口 BSS
-清零、32/64 分档案隔离、长期回归语料与发布审计均已实现。覆盖矩阵 636/636；
-design §12 十五项均有套件映射。
+## 当前结论
 
-复现：
+- G0–G11 全部通过；G10 完成 0.0.46 阶段出口，G11 完成 0.0.47 阶段出口。
+- 0.0.47 的 P0–P5、T0–T6、P4b 正式验收均已完成；当前注册 99 项 CTest、51 项收尾检查。
+- 固定 Linux CI 的四 profile 真实 gdb 签名证据已通过发布审计；本地、SKIP 或不完整证据不能关闭 G11。
+- 当前能力、实现边界与完整复现命令见 [README](../../README.md)、[AGENTS](../../AGENTS.md) 与
+  [tests/README](../../tests/README.md)。
 
-```sh
-cmake -S . -B .tmp/build
-cmake --build .tmp/build
-ctest --test-dir .tmp/build --output-on-failure
-ctest --test-dir .tmp/build -R '^project\.|^linemap\.|^p4a\.|^toolchain\.(debug_elf|g11_evidence|diag_json|presets|reduce)|^t[124]\.|^gdb_|^vm\.gdb\.|^release\.(t6_repro|s10_audit|audit_selftest)' --output-on-failure
-python3 tests/conformance/static/s1_cases.py --check
-python3 tests/conformance/static/s2s3_cases.py --check
-python3 tests/conformance/static/s4_cases.py --check
-python3 tests/conformance/static/s5_cases.py --check
-python3 tests/conformance/runtime/s6_cases.py --check
-python3 tests/conformance/static/s6_static_cases.py --check
-python3 tests/conformance/diff/s7_cases.py --check
-python3 tests/conformance/diff/s7_fuzz.py --check
-python3 tests/conformance/abi/s7_abi_cases.py --check
-python3 tests/conformance/tools/s7_toolchain_cases.py --check
-python3 tests/conformance/tools/s7_static_parity.py --check
-python3 tests/determinism/s7_determinism.py --check
-python3 tests/conformance/diff/s8_cases.py --check
-python3 tests/conformance/abi/s8_abi_cases.py --check
-python3 tests/conformance/abi/s8_interop_cases.py --check
-python3 tests/conformance/diff/s8_abi_fuzz.py --check
-python3 tests/conformance/diff/s8_layout_fuzz.py --check
-python3 tests/conformance/diff/s8_mem_fuzz.py --check
-python3 tests/conformance/diff/s8_fp_fuzz.py --check
-python3 tests/conformance/checked/s8_checked_cases.py --check
-python3 tests/conformance/consistency/s8_consistency_cases.py --check
-python3 tests/conformance/tools/s8_artifact_cases.py --check
-python3 tests/conformance/tools/s8_static_fuzz.py --check
-python3 tests/determinism/s8_determinism.py --check
-python3 tests/conformance/platform/s9_baremetal_cases.py --check
-python3 tests/conformance/platform/s9_arm32_cases.py --check
-python3 tests/conformance/abi/s9_arm32_interop.py --check
-python3 tests/conformance/abi/reverse_interop_cases.py --check
-python3 tests/tools/abi_mutation_audit.py --check
-python3 tests/tools/s9_capacity_report.py --check
-python3 tests/tools/s9_softfloat_audit.py --check
-python3 tests/conformance/tools/s9_static_parity.py --check
-python3 tests/conformance/platform/s9_profiles.py --check
-python3 tests/determinism/s9_determinism.py --check
-python3 tests/conformance/platform/s10_riscv32_cases.py --check
-python3 tests/conformance/platform/s10_limits_cases.py --check
-python3 tests/conformance/abi/s10_riscv32_interop.py --check
-python3 tests/conformance/abi/s10_reverse_interop.py --check
-python3 tests/conformance/abi/s10_abi_fuzz.py --check --seeds 8
-python3 tests/conformance/tools/s10_static_parity.py --check
-python3 tests/conformance/tools/s8_static_fuzz.py --check --profile=riscv32-baremetal
-python3 tests/conformance/tools/s10_frontend_scale.py --check
-python3 tests/conformance/checked/s10_checked_cases.py --check
-python3 tests/conformance/platform/s10_long_branch.py --check
-python3 tests/conformance/longterm/s10_longterm.py --check
-python3 tests/determinism/s10_determinism.py --check
-python3 tests/tools/s10_release_audit.py --check
-python3 tests/golden/validate.py
-python3 tests/golden/run.py .tmp/build/src/driver/tc-vm
-python3 tests/traceability/coverage.py --check
-python3 tests/tools/docs_cleanup_check.py
-```
+## 0.0.47 证据入口
 
-收尾清理由 `docs.cleanup`（`tests/tools/docs_cleanup_check.py`）门禁检查；详细过程记录
-保留在 git 历史中。
+| 范围 | 当前证据 |
+| ---- | ---- |
+| P0–P3 版本、CLI、初始化、manifest 与路径 | `cli.contract`、`project.manifest`、`project.init`、`project.init_fault`、`project.paths_unit`、`project.paths`、`project.paths_aot`、`project.test_runner` |
+| P4a / T2 行表与源级映射 | `linemap.unit`、`p4a.debug`、`t2.debug`、`t2.gdb` |
+| T1 观测 | `t1.observe` |
+| T3 GDBstub | `gdb_journal.unit`、`gdb_rsp.unit`、`vm.gdb.protocol`、`vm.gdb.semantics`、`vm.gdb.e2e` |
+| P4b / G11 调试 ELF 与签名证据 | `toolchain.debug_elf`、`toolchain.g11_evidence`、`release.s10_audit` |
+| T4–T6 诊断、测试基建与可复现发布 | `t4.diag`、`toolchain.diag_json`、`toolchain.presets`、`toolchain.reduce`、`release.t6_repro` |
 
 规范依据始终是 [标准](../TC语言及编译器标准-0.0.46.md)、
 [设计](../TC原生编译器设计说明书-0.0.46.md) 与
