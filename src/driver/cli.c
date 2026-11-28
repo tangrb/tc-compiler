@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 /* Shared compiler CLI parsing and implementation-error exit mapping. */
 #include "driver/cli.h"
 
